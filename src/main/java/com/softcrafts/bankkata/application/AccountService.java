@@ -1,12 +1,8 @@
 package com.softcrafts.bankkata.application;
 
-// SCAFFOLD: true
-// Implements AccountUseCase — orchestrates domain + AccountRepository.
-// No Spring annotations in this class — pure application service.
-// Spring injects it as an AccountUseCase bean via BankApplication composition root.
-
 import com.softcrafts.bankkata.application.port.in.AccountUseCase;
 import com.softcrafts.bankkata.application.port.out.AccountRepository;
+import com.softcrafts.bankkata.domain.Account;
 
 import java.math.BigDecimal;
 
@@ -22,25 +18,30 @@ import java.math.BigDecimal;
  */
 public class AccountService implements AccountUseCase {
 
-    // SCAFFOLD: true
     private final AccountRepository accountRepository;
 
     public AccountService(AccountRepository accountRepository) {
-        throw new AssertionError("Not yet implemented -- RED scaffold");
+        this.accountRepository = accountRepository;
     }
 
     @Override
     public BigDecimal getBalance() {
-        throw new AssertionError("Not yet implemented -- RED scaffold");
+        return accountRepository.load().getBalance();
     }
 
     @Override
     public BigDecimal deposit(BigDecimal amount) {
-        throw new AssertionError("Not yet implemented -- RED scaffold");
+        Account account = accountRepository.load();
+        account.deposit(amount);
+        accountRepository.save(account);
+        return account.getBalance();
     }
 
     @Override
     public BigDecimal withdraw(BigDecimal amount) {
-        throw new AssertionError("Not yet implemented -- RED scaffold");
+        Account account = accountRepository.load();
+        account.withdraw(amount);
+        accountRepository.save(account);
+        return account.getBalance();
     }
 }

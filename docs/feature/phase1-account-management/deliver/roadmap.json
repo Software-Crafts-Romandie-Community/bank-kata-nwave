@@ -1,0 +1,192 @@
+{
+  "roadmap": {
+    "project_id": "phase1-account-management",
+    "created_at": "2026-06-02T19:03:33Z",
+    "total_steps": 7
+  },
+  "phases": [
+    {
+      "id": "01",
+      "name": "Walking Skeleton",
+      "steps": [
+        {
+          "id": "01-01",
+          "name": "Walking Skeleton: GET /api/balance returns 0.00",
+          "criteria": [
+            "pom.xml créé avec Spring Boot 3.x, Cucumber-JVM 7.x, JUnit Platform, MockMvc",
+            "BankApplication démarre sans erreur",
+            "GET /api/balance retourne HTTP 200 + { \"balance\": 0.00 }",
+            "Scénario walking-skeleton VERT via MockMvc",
+            "Aucun scaffold marker // SCAFFOLD: true ne subsiste dans les fichiers modifiés"
+          ],
+          "test_file": "src/test/resources/features/account-management/walking-skeleton.feature",
+          "scenario_name": "Customer views initial balance on a new account",
+          "implementation_notes": "Créer pom.xml complet. Implémenter Account (balance BigDecimal), AccountRepository interface, AccountUseCase interface (getBalance), AccountService (getBalance), InMemoryAccountRepository (@Component singleton), AccountController (GET /api/balance → BalanceResponse), BankApplication (@SpringBootApplication), BalanceResponse record. Activer le scénario walking-skeleton (supprimer @skip si présent). TEST PARADIGM : MockMvc acceptance test via AccountManagementSteps.java — test AT port-to-port via driving port HTTP.",
+          "files_to_modify": [
+            "pom.xml",
+            "src/main/java/com/softcrafts/bankkata/domain/Account.java",
+            "src/main/java/com/softcrafts/bankkata/domain/Transaction.java",
+            "src/main/java/com/softcrafts/bankkata/domain/InsufficientFundsException.java",
+            "src/main/java/com/softcrafts/bankkata/application/port/in/AccountUseCase.java",
+            "src/main/java/com/softcrafts/bankkata/application/port/out/AccountRepository.java",
+            "src/main/java/com/softcrafts/bankkata/application/AccountService.java",
+            "src/main/java/com/softcrafts/bankkata/adapter/in/web/AccountController.java",
+            "src/main/java/com/softcrafts/bankkata/adapter/in/web/BalanceResponse.java",
+            "src/main/java/com/softcrafts/bankkata/adapter/in/web/DepositRequest.java",
+            "src/main/java/com/softcrafts/bankkata/adapter/in/web/WithdrawRequest.java",
+            "src/main/java/com/softcrafts/bankkata/adapter/out/InMemoryAccountRepository.java",
+            "src/main/java/com/softcrafts/bankkata/BankApplication.java",
+            "src/test/java/com/softcrafts/bankkata/acceptance/steps/AccountManagementSteps.java",
+            "src/test/java/com/softcrafts/bankkata/acceptance/config/CucumberSpringConfiguration.java",
+            "src/test/java/com/softcrafts/bankkata/acceptance/AccountManagementAcceptanceTest.java"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "02",
+      "name": "Deposit Feature",
+      "steps": [
+        {
+          "id": "02-01",
+          "name": "Deposit: valid amounts update balance correctly",
+          "criteria": [
+            "POST /api/deposit { amount: 150.00 } retourne HTTP 200 + { balance: 150.00 }",
+            "POST /api/deposit { amount: 50.50 } retourne HTTP 200 + { balance: 50.50 }",
+            "POST /api/deposit successifs accumulent correctement"
+          ],
+          "test_file": "src/test/resources/features/account-management/deposit.feature",
+          "scenario_name": "A valid deposit increases the account balance",
+          "implementation_notes": "Implémenter Account.deposit(BigDecimal), AccountUseCase.deposit(), AccountService.deposit(), AccountController POST /api/deposit. Activer les 3 premiers scénarios deposit (supprimer @skip). Les scénarios d'erreur restent @skip.",
+          "files_to_modify": [
+            "src/main/java/com/softcrafts/bankkata/domain/Account.java",
+            "src/main/java/com/softcrafts/bankkata/application/port/in/AccountUseCase.java",
+            "src/main/java/com/softcrafts/bankkata/application/AccountService.java",
+            "src/main/java/com/softcrafts/bankkata/adapter/in/web/AccountController.java",
+            "src/test/java/com/softcrafts/bankkata/acceptance/steps/AccountManagementSteps.java"
+          ]
+        },
+        {
+          "id": "02-02",
+          "name": "Deposit: invalid amounts are rejected with 400",
+          "criteria": [
+            "POST /api/deposit { amount: 0.00 } retourne HTTP 400 + RFC 7807 { status: 400, detail: 'Invalid amount' }",
+            "POST /api/deposit { amount: -10.00 } retourne HTTP 400 + RFC 7807",
+            "Solde inchangé après rejet"
+          ],
+          "test_file": "src/test/resources/features/account-management/deposit.feature",
+          "scenario_name": "A deposit of zero is rejected and the balance stays unchanged",
+          "implementation_notes": "Ajouter validation montant > 0 dans AccountController (ou Account). Configurer RFC 7807 ProblemDetails dans Spring Boot 3 (spring.mvc.problemdetails.enabled=true ou handler). Activer les 2 scénarios d'erreur deposit.",
+          "files_to_modify": [
+            "src/main/java/com/softcrafts/bankkata/adapter/in/web/AccountController.java",
+            "src/main/java/com/softcrafts/bankkata/domain/Account.java",
+            "src/main/resources/application.properties",
+            "src/test/java/com/softcrafts/bankkata/acceptance/steps/AccountManagementSteps.java"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "03",
+      "name": "Withdrawal Feature",
+      "steps": [
+        {
+          "id": "03-01",
+          "name": "Withdrawal: valid amounts decrease balance correctly",
+          "criteria": [
+            "POST /api/withdraw { amount: 80.00 } sur solde 300.00 → HTTP 200 + { balance: 220.00 }",
+            "Retrait exact du solde → HTTP 200 + { balance: 0.00 }",
+            "Retrait décimal 33.33 sur 100.00 → { balance: 66.67 }"
+          ],
+          "test_file": "src/test/resources/features/account-management/withdrawal.feature",
+          "scenario_name": "A valid withdrawal decreases the account balance",
+          "implementation_notes": "Implémenter Account.withdraw(BigDecimal) pour cas valides (sans fonds insuffisants encore). AccountUseCase.withdraw(), AccountService.withdraw(), AccountController POST /api/withdraw. Activer 3 premiers scénarios withdrawal.",
+          "files_to_modify": [
+            "src/main/java/com/softcrafts/bankkata/domain/Account.java",
+            "src/main/java/com/softcrafts/bankkata/application/port/in/AccountUseCase.java",
+            "src/main/java/com/softcrafts/bankkata/application/AccountService.java",
+            "src/main/java/com/softcrafts/bankkata/adapter/in/web/AccountController.java",
+            "src/test/java/com/softcrafts/bankkata/acceptance/steps/AccountManagementSteps.java"
+          ]
+        },
+        {
+          "id": "03-02",
+          "name": "Withdrawal: invalid amounts are rejected with 400",
+          "criteria": [
+            "POST /api/withdraw { amount: 0.00 } → HTTP 400 + RFC 7807",
+            "POST /api/withdraw { amount: -50.00 } → HTTP 400 + RFC 7807",
+            "Solde inchangé après rejet"
+          ],
+          "test_file": "src/test/resources/features/account-management/withdrawal.feature",
+          "scenario_name": "A withdrawal of zero is rejected and the balance stays unchanged",
+          "implementation_notes": "Réutiliser la logique de validation montant > 0 de step 02-02. Activer les 2 scénarios d'erreur withdrawal.",
+          "files_to_modify": [
+            "src/main/java/com/softcrafts/bankkata/adapter/in/web/AccountController.java",
+            "src/main/java/com/softcrafts/bankkata/domain/Account.java",
+            "src/test/java/com/softcrafts/bankkata/acceptance/steps/AccountManagementSteps.java"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "04",
+      "name": "Insufficient Funds Rule",
+      "steps": [
+        {
+          "id": "04-01",
+          "name": "Insufficient funds: withdrawal refused with 409 + RFC 7807",
+          "criteria": [
+            "POST /api/withdraw > solde → HTTP 409 + RFC 7807 { status: 409, detail: 'Insufficient funds', available: X.XX }",
+            "Retrait de 0.01 au-dessus du solde → HTTP 409",
+            "Retrait sur compte vide → HTTP 409",
+            "Après dépôts multiples, retrait > solde cumulé → HTTP 409",
+            "Solde inchangé après chaque rejet 409"
+          ],
+          "test_file": "src/test/resources/features/account-management/insufficient-funds.feature",
+          "scenario_name": "A withdrawal exceeding the balance is refused and the balance stays unchanged",
+          "implementation_notes": "Account.withdraw() lève InsufficientFundsException quand amount > balance. AccountController traduit InsufficientFundsException en HTTP 409 + RFC 7807 avec champ 'available'. Activer 4 premiers scénarios insufficient-funds.",
+          "files_to_modify": [
+            "src/main/java/com/softcrafts/bankkata/domain/Account.java",
+            "src/main/java/com/softcrafts/bankkata/domain/InsufficientFundsException.java",
+            "src/main/java/com/softcrafts/bankkata/adapter/in/web/AccountController.java",
+            "src/test/java/com/softcrafts/bankkata/acceptance/steps/AccountManagementSteps.java"
+          ]
+        },
+        {
+          "id": "04-02",
+          "name": "Property: account balance is never negative",
+          "criteria": [
+            "Pour tout montant > solde : retrait refusé, solde inchangé (≥ 0)",
+            "La propriété tient pour toute séquence de dépôts + retrait excessif"
+          ],
+          "test_file": "src/test/resources/features/account-management/insufficient-funds.feature",
+          "scenario_name": "The account balance is never negative regardless of withdrawal attempts",
+          "implementation_notes": "Le scénario @property est couvert par l'implémentation de step 04-01 (InsufficientFundsException systématique quand amount > balance). Activer le dernier scénario. Ajouter si souhaité un test jqwik @Property dans AccountTest.java vérifiant l'invariant balance >= 0 pour toute séquence de dépôts/retraits.",
+          "files_to_modify": [
+            "src/main/java/com/softcrafts/bankkata/domain/Account.java",
+            "src/test/java/com/softcrafts/bankkata/acceptance/steps/AccountManagementSteps.java"
+          ]
+        }
+      ]
+    }
+  ],
+  "implementation_scope": {
+    "source_directories": [
+      "src/main/java/com/softcrafts/bankkata/"
+    ],
+    "test_directories": [
+      "src/test/java/com/softcrafts/bankkata/",
+      "src/test/resources/features/"
+    ],
+    "excluded_patterns": [
+      "target/**",
+      ".idea/**"
+    ]
+  },
+  "validation": {
+    "status": "approved",
+    "reviewer": "nw-acceptance-designer-reviewer",
+    "approved_at": "2026-06-02T19:10:00Z",
+    "notes": "R1 false positive (RED scaffolds are DISTILL-correct). R2/R3 non-blocking clarifications."
+  }
+}

@@ -1,8 +1,5 @@
 package com.softcrafts.bankkata.adapter.in.web;
 
-// SCAFFOLD: true
-// DTO incoming — carries the withdrawal amount from POST /api/withdraw request body.
-
 import java.math.BigDecimal;
 
 /**
@@ -12,8 +9,5 @@ import java.math.BigDecimal;
  *
  * Used by: POST /api/withdraw
  */
-public record WithdrawRequest(
-    // SCAFFOLD: true
-    BigDecimal amount
-) {
+public record WithdrawRequest(BigDecimal amount) {
 }

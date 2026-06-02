@@ -1,11 +1,9 @@
 package com.softcrafts.bankkata.domain;
 
-// SCAFFOLD: true
-// Aggregate — maintains account balance (BigDecimal), enforces balance >= 0 rule,
-// raises InsufficientFundsException when withdrawal would breach the invariant.
-
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -20,27 +18,38 @@ import java.util.List;
  */
 public class Account {
 
-    // SCAFFOLD: true
     private BigDecimal balance;
     private final List<Transaction> transactions;
 
     public Account() {
-        throw new AssertionError("Not yet implemented -- RED scaffold");
+        this.balance = BigDecimal.ZERO;
+        this.transactions = new ArrayList<>();
     }
 
     public BigDecimal getBalance() {
-        throw new AssertionError("Not yet implemented -- RED scaffold");
+        return balance;
     }
 
     public void deposit(BigDecimal amount) {
-        throw new AssertionError("Not yet implemented -- RED scaffold");
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Deposit amount must be strictly positive");
+        }
+        balance = balance.add(amount);
+        transactions.add(new Transaction(Transaction.Type.DEPOSIT, amount, Instant.now()));
     }
 
     public void withdraw(BigDecimal amount) {
-        throw new AssertionError("Not yet implemented -- RED scaffold");
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Withdrawal amount must be strictly positive");
+        }
+        if (amount.compareTo(balance) > 0) {
+            throw new InsufficientFundsException(balance, amount);
+        }
+        balance = balance.subtract(amount);
+        transactions.add(new Transaction(Transaction.Type.WITHDRAWAL, amount, Instant.now()));
     }
 
     public List<Transaction> getTransactions() {
-        throw new AssertionError("Not yet implemented -- RED scaffold");
+        return Collections.unmodifiableList(transactions);
     }
 }

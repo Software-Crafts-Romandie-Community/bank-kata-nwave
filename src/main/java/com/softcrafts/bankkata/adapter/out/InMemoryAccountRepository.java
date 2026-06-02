@@ -1,10 +1,5 @@
 package com.softcrafts.bankkata.adapter.out;
 
-// SCAFFOLD: true
-// Driven adapter — implements AccountRepository using in-memory storage.
-// @Component: singleton Spring bean — account state preserved across HTTP requests.
-// Exposes reset() for test @BeforeEach cleanup.
-
 import com.softcrafts.bankkata.application.port.out.AccountRepository;
 import com.softcrafts.bankkata.domain.Account;
 import org.springframework.stereotype.Component;
@@ -17,39 +12,45 @@ import org.springframework.stereotype.Component;
  * (documented Phase 1 behaviour).
  *
  * Exposes reset() for test teardown (called in @BeforeEach within step definitions).
- *
- * Probe method — called at startup via ApplicationRunner to validate the adapter
- * before accepting traffic. Failure → structured health event + startup refusal.
  */
 @Component
 public class InMemoryAccountRepository implements AccountRepository {
 
-    // SCAFFOLD: true
+    private Account account;
+
+    public InMemoryAccountRepository() {
+        this.account = new Account();
+    }
 
     @Override
     public Account load() {
-        throw new AssertionError("Not yet implemented -- RED scaffold");
+        return account;
     }
 
     @Override
     public void save(Account account) {
-        throw new AssertionError("Not yet implemented -- RED scaffold");
+        this.account = account;
     }
 
     /**
      * Reset the in-memory state to a fresh account.
-     * Called in @BeforeEach during acceptance tests to guarantee isolation between scenarios.
+     * Called in @Before during acceptance tests to guarantee isolation between scenarios.
      */
     public void reset() {
-        throw new AssertionError("Not yet implemented -- RED scaffold");
+        this.account = new Account();
     }
 
     /**
-     * Startup probe — validates create / load / mutate / reload round-trip.
-     * Called via ApplicationRunner at context startup.
+     * Startup probe — validates create / load / save round-trip.
      * Throws RuntimeException on failure to prevent the application from accepting traffic.
      */
     public void probe() {
-        throw new AssertionError("Not yet implemented -- RED scaffold");
+        Account probe = new Account();
+        save(probe);
+        Account loaded = load();
+        if (loaded == null) {
+            throw new RuntimeException("InMemoryAccountRepository probe failed: load returned null");
+        }
+        reset();
     }
 }

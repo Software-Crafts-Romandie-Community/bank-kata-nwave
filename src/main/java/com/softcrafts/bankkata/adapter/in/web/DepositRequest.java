@@ -1,8 +1,5 @@
 package com.softcrafts.bankkata.adapter.in.web;
 
-// SCAFFOLD: true
-// DTO incoming — carries the deposit amount from POST /api/deposit request body.
-
 import java.math.BigDecimal;
 
 /**
@@ -12,8 +9,5 @@ import java.math.BigDecimal;
  *
  * Used by: POST /api/deposit
  */
-public record DepositRequest(
-    // SCAFFOLD: true
-    BigDecimal amount
-) {
+public record DepositRequest(BigDecimal amount) {
 }

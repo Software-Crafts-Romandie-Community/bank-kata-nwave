@@ -1,29 +1,27 @@
 package com.softcrafts.bankkata;
 
-// SCAFFOLD: true
-// Composition root — @SpringBootApplication replaces the manual Main.java from the kata.
-// Wires AccountController -> AccountUseCase -> AccountService -> AccountRepository -> InMemoryAccountRepository.
-
+import com.softcrafts.bankkata.application.AccountService;
+import com.softcrafts.bankkata.application.port.in.AccountUseCase;
+import com.softcrafts.bankkata.application.port.out.AccountRepository;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
 
 /**
  * Spring Boot composition root — BankApplication.
  *
- * Replaces the manual Main.java from the CLI kata.
- * The Spring IoC container handles all wiring:
- *   AccountController <- AccountUseCase (injected as AccountService)
- *   AccountService <- AccountRepository (injected as InMemoryAccountRepository @Component)
- *
- * Static resources (index.html, app.js) are served from src/main/resources/static/.
- * Server port: 8080 (Spring Boot default).
+ * Wires AccountController -> AccountUseCase -> AccountService -> AccountRepository -> InMemoryAccountRepository.
+ * The Spring IoC container handles all injection.
  */
 @SpringBootApplication
 public class BankApplication {
 
-    // SCAFFOLD: true
-
     public static void main(String[] args) {
-        throw new AssertionError("Not yet implemented -- RED scaffold");
+        SpringApplication.run(BankApplication.class, args);
+    }
+
+    @Bean
+    public AccountUseCase accountUseCase(AccountRepository accountRepository) {
+        return new AccountService(accountRepository);
     }
 }

@@ -1,9 +1,5 @@
 package com.softcrafts.bankkata.domain;
 
-// SCAFFOLD: true
-// Domain exception — raised by Account.withdraw() when requested amount exceeds balance.
-// Non-checked (extends RuntimeException) — pure business signal, no infrastructure coupling.
-
 import java.math.BigDecimal;
 
 /**
@@ -17,20 +13,20 @@ import java.math.BigDecimal;
  */
 public class InsufficientFundsException extends RuntimeException {
 
-    // SCAFFOLD: true
     private final BigDecimal availableBalance;
     private final BigDecimal requestedAmount;
 
     public InsufficientFundsException(BigDecimal availableBalance, BigDecimal requestedAmount) {
         super("Insufficient funds: available=" + availableBalance + ", requested=" + requestedAmount);
-        throw new AssertionError("Not yet implemented -- RED scaffold");
+        this.availableBalance = availableBalance;
+        this.requestedAmount = requestedAmount;
     }
 
     public BigDecimal getAvailableBalance() {
-        throw new AssertionError("Not yet implemented -- RED scaffold");
+        return availableBalance;
     }
 
     public BigDecimal getRequestedAmount() {
-        throw new AssertionError("Not yet implemented -- RED scaffold");
+        return requestedAmount;
     }
 }
