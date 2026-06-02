@@ -471,3 +471,145 @@ L'acceptance-designer peut maintenant ecrire les acceptance tests pour les 4 sli
 ### Paradigme de developpement
 
 OOP — pour information du software-crafter (IMPLEMENT wave).
+
+---
+
+## Wave: DISTILL / [REF] Scenario List
+
+| # | Feature file | Scenario title | Tags | Active? |
+|---|---|---|---|---|
+| 1 | walking-skeleton.feature | Customer views initial balance on a new account | `@walking_skeleton @real-io @driving_port @US-WS` | YES |
+| 2 | deposit.feature | A valid deposit increases the account balance | `@driving_port @US-S1 @skip` | no |
+| 3 | deposit.feature | A deposit with a decimal amount updates the balance correctly | `@driving_port @US-S1 @skip` | no |
+| 4 | deposit.feature | Several successive deposits accumulate correctly | `@driving_port @US-S1 @skip` | no |
+| 5 | deposit.feature | A deposit of zero is rejected and the balance stays unchanged | `@driving_port @US-S1 @skip @error` | no |
+| 6 | deposit.feature | A negative deposit amount is rejected and the balance stays unchanged | `@driving_port @US-S1 @skip @error` | no |
+| 7 | withdrawal.feature | A valid withdrawal decreases the account balance | `@driving_port @US-S2 @skip` | no |
+| 8 | withdrawal.feature | Withdrawing the exact account balance brings the balance to zero | `@driving_port @US-S2 @skip` | no |
+| 9 | withdrawal.feature | A withdrawal with a decimal amount updates the balance correctly | `@driving_port @US-S2 @skip` | no |
+| 10 | withdrawal.feature | A withdrawal of zero is rejected and the balance stays unchanged | `@driving_port @US-S2 @skip @error` | no |
+| 11 | withdrawal.feature | A negative withdrawal amount is rejected and the balance stays unchanged | `@driving_port @US-S2 @skip @error` | no |
+| 12 | insufficient-funds.feature | A withdrawal exceeding the balance is refused and the balance stays unchanged | `@driving_port @US-S3 @skip @error` | no |
+| 13 | insufficient-funds.feature | A withdrawal of one cent more than the balance is refused | `@driving_port @US-S3 @skip @error` | no |
+| 14 | insufficient-funds.feature | A withdrawal from an empty account is refused | `@driving_port @US-S3 @skip @error` | no |
+| 15 | insufficient-funds.feature | The balance stays unchanged after a refused withdrawal following multiple deposits | `@driving_port @US-S3 @skip @error` | no |
+| 16 | insufficient-funds.feature | The account balance is never negative regardless of withdrawal attempts | `@driving_port @US-S3 @skip @property` | no |
+
+**Error path ratio**: 8 error/edge scenarios out of 16 total = 50% (target: 40%+). PASS.
+
+**Tier A only** — journey has 3 chained scenarios but input space is not domain-rich (monetary amounts are constrained to a small range without complex date/email/free-text variation). Tier B state-machine PBT not warranted.
+
+---
+
+## Wave: DISTILL / [REF] WS Strategy
+
+| Dimension | Decision |
+|---|---|
+| Strategy | Architecture of Reference: MockMvc as driving adapter (HTTP); InMemoryAccountRepository as real driven bean |
+| Walking Skeleton | Scenario 1 — "Customer views initial balance on a new account" — closes the loop: test → MockMvc → AccountController → AccountUseCase → InMemoryAccountRepository → assertion |
+| Litmus test | Non-technical stakeholder can confirm: "Yes, opening the banking application shows my balance" |
+| Tagging | `@walking_skeleton @real-io @driving_port` |
+| Infrastructure | `@SpringBootTest(webEnvironment = MOCK)` — full Spring context, no Tomcat. InMemoryAccountRepository is a real `@Component` bean |
+
+---
+
+## Wave: DISTILL / [REF] Adapter Coverage
+
+| Adapter | Driven port | @real-io scenario | Coverage |
+|---|---|---|---|
+| `InMemoryAccountRepository` | `AccountRepository` | YES — Walking Skeleton (Scenario 1) | Real `@Component` bean in Spring test context |
+
+No driven external adapters in Phase 1. Coverage: complete.
+
+---
+
+## Wave: DISTILL / [REF] Scaffolds
+
+All scaffold files carry `// SCAFFOLD: true` marker. Every public method raises `AssertionError("Not yet implemented -- RED scaffold")`.
+
+| File | Type | Layer |
+|---|---|---|
+| `src/main/java/com/softcrafts/bankkata/domain/Account.java` | Aggregate | domain |
+| `src/main/java/com/softcrafts/bankkata/domain/Transaction.java` | Value object (record) | domain |
+| `src/main/java/com/softcrafts/bankkata/domain/InsufficientFundsException.java` | Domain exception | domain |
+| `src/main/java/com/softcrafts/bankkata/application/port/in/AccountUseCase.java` | Primary port (interface) | application |
+| `src/main/java/com/softcrafts/bankkata/application/port/out/AccountRepository.java` | Secondary port (interface) | application |
+| `src/main/java/com/softcrafts/bankkata/application/AccountService.java` | Application service | application |
+| `src/main/java/com/softcrafts/bankkata/adapter/in/web/AccountController.java` | HTTP driving adapter | adapter/in/web |
+| `src/main/java/com/softcrafts/bankkata/adapter/in/web/BalanceResponse.java` | DTO outgoing | adapter/in/web |
+| `src/main/java/com/softcrafts/bankkata/adapter/in/web/DepositRequest.java` | DTO incoming | adapter/in/web |
+| `src/main/java/com/softcrafts/bankkata/adapter/in/web/WithdrawRequest.java` | DTO incoming | adapter/in/web |
+| `src/main/java/com/softcrafts/bankkata/adapter/out/InMemoryAccountRepository.java` | Driven adapter + probe | adapter/out |
+| `src/main/java/com/softcrafts/bankkata/BankApplication.java` | Composition root | root |
+
+Detect scaffolds: `grep -r "SCAFFOLD: true" src/main/`
+
+---
+
+## Wave: DISTILL / [REF] Test Placement
+
+| Artefact | Path |
+|---|---|
+| Feature files | `src/test/resources/features/account-management/` |
+| Step definitions | `src/test/java/com/softcrafts/bankkata/acceptance/steps/AccountManagementSteps.java` |
+| Cucumber Spring config | `src/test/java/com/softcrafts/bankkata/acceptance/config/CucumberSpringConfiguration.java` |
+| Cucumber runner | `src/test/java/com/softcrafts/bankkata/acceptance/AccountManagementAcceptanceTest.java` |
+
+Precedent: standard Maven/Gradle layout for Spring Boot + Cucumber-JVM. Feature resources under `src/test/resources/features/`, step definitions mirror production package under `src/test/java/`.
+
+---
+
+## Wave: DISTILL / [REF] Driving Adapter Coverage
+
+| Driving adapter entry point | Protocol | Covered by |
+|---|---|---|
+| `GET /api/balance` | MockMvc HTTP GET | Walking Skeleton (Scenario 1) |
+| `POST /api/deposit` | MockMvc HTTP POST | Scenarios 2-6 (deposit.feature) |
+| `POST /api/withdraw` | MockMvc HTTP POST | Scenarios 7-16 (withdrawal + insufficient-funds) |
+
+All three REST endpoints covered. Zero uncovered entry points.
+
+---
+
+## Wave: DISTILL / [REF] Pre-requisites
+
+| Pre-requisite | Source | Status |
+|---|---|---|
+| Spring Boot 3.x dependency on classpath | ADR-003 | Required — crafter adds pom.xml/build.gradle |
+| Cucumber-JVM 7.x (`io.cucumber:cucumber-spring`, `io.cucumber:cucumber-junit-platform-engine`) | DISTILL tech stack decision | Required |
+| JUnit Platform Suite (`junit-platform-suite`) | DISTILL tech stack decision | Required |
+| `@SpringBootTest` + `@AutoConfigureMockMvc` | Spring Boot Starter Test | Included in spring-boot-starter-test |
+| InMemoryAccountRepository exposes `reset()` | Scaffold | Implemented by crafter in DELIVER |
+| `BankApplication` starts without error | Composition root scaffold | Walking Skeleton gate — must be GREEN first |
+
+DEVOPS environment: no separate DEVOPS wave — single local environment, no CI/CD constraints for Phase 1. Default matrix applies: `clean` environment only.
+
+---
+
+## Wave: DISTILL / [HANDOFF] DELIVER Wave Package
+
+### Artefacts produits par DISTILL wave
+
+| Artefact | Chemin | Statut |
+|---|---|---|
+| ATDD Infrastructure Policy | `docs/architecture/atdd-infrastructure-policy.md` | Cree — premier DISTILL du projet |
+| Feature file — walking skeleton | `src/test/resources/features/account-management/walking-skeleton.feature` | Cree — 1 scenario actif |
+| Feature file — depot | `src/test/resources/features/account-management/deposit.feature` | Cree — 5 scenarios @skip |
+| Feature file — retrait | `src/test/resources/features/account-management/withdrawal.feature` | Cree — 5 scenarios @skip |
+| Feature file — fonds insuffisants | `src/test/resources/features/account-management/insufficient-funds.feature` | Cree — 5 scenarios @skip |
+| Step definitions | `src/test/java/com/softcrafts/bankkata/acceptance/steps/AccountManagementSteps.java` | Scaffold RED |
+| Cucumber Spring config | `src/test/java/com/softcrafts/bankkata/acceptance/config/CucumberSpringConfiguration.java` | Scaffold RED |
+| Cucumber runner | `src/test/java/com/softcrafts/bankkata/acceptance/AccountManagementAcceptanceTest.java` | Scaffold RED |
+| Scaffolds production (12 fichiers) | `src/main/java/com/softcrafts/bankkata/` | Scaffold RED — voir [REF] Scaffolds |
+
+### Contrat pour le software-crafter (DELIVER wave)
+
+- **Scenario actif** : Scenario 1 (walking-skeleton.feature) — unskip, implement, go GREEN, commit
+- **Sequence DELIVER** : WS → depot (S2-S6) → retrait (S7-S11) → fonds insuffisants (S12-S16)
+- **Un scenario a la fois** : remove `@skip` from one scenario, RED → GREEN → COMMIT, repeat
+- **Format JSON erreurs** : RFC 7807 Problem Details — `{"type":"...", "title":"...", "status":409, "detail":"Insufficient funds"}`
+- **HTTP 409** : fonds insuffisants uniquement (InsufficientFundsException → 409)
+- **HTTP 400** : montant invalide (<= 0) — IllegalArgumentException → 400
+- **BigDecimal JSON** : serialise en Number (`{"balance": 100.50}`) — pas de String
+- **Reset** : `InMemoryAccountRepository.reset()` appele dans `@BeforeEach` des step definitions
+- **Invariant domaine** : solde jamais negatif — enforced par `Account.withdraw()`, pas par le controller
