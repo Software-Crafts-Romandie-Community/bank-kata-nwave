@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      # --- Commit stage (< 10 min) ---
+
+      - name: Compile
+        run: mvn -B compile
+
+      - name: Unit Tests
+        run: mvn -B test -Dgroups="unit"
+
+      - name: Acceptance Tests (Cucumber)
+        run: mvn -B verify -Dgroups="acceptance"
+
+      - name: ArchUnit — Hexagonal architecture enforcement
+        # Inclus dans verify — séparé ici pour visibilité du gate
+        run: mvn -B test -Dtest="ArchitectureTest" -DfailIfNoTests=false
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: target/surefire-reports/
+
+  # --- Mutation testing nightly-delta ---
+  # Déclenché uniquement sur push main (pas sur PR) — feedback ~12h
+  # Principe 9 : nightly-delta (50k-200k LOC, daily cadence)
+  mutation-nightly:
+    name: Mutation Testing (PIT — nightly delta)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build-and-test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Mutation Testing (PIT)
+        run: mvn -B org.pitest:pitest-maven:mutationCoverage
+
+      - name: Upload mutation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: target/pit-reports/

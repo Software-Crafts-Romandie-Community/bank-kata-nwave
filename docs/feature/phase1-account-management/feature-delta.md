@@ -613,3 +613,201 @@ DEVOPS environment: no separate DEVOPS wave — single local environment, no CI/
 - **BigDecimal JSON** : serialise en Number (`{"balance": 100.50}`) — pas de String
 - **Reset** : `InMemoryAccountRepository.reset()` appele dans `@BeforeEach` des step definitions
 - **Invariant domaine** : solde jamais negatif — enforced par `Account.withdraw()`, pas par le controller
+
+---
+
+## Wave: DEVOPS / [REF] Environment Matrix
+
+| Environnement | Plateforme | Prérequis | Usage |
+|---|---|---|---|
+| local | Linux / macOS / Windows | JDK 21, Maven 3.9+, Docker Desktop | Développement et démo |
+| ci | GitHub Actions ubuntu-latest | JDK 21 via actions/setup-java (temurin) | Pipeline automatisé |
+
+Fichier de référence : `docs/feature/phase1-account-management/environments.yaml`
+
+**Hors scope Phase 1** : authentification, HTTPS, base de données, déploiement cloud.
+
+---
+
+## Wave: DEVOPS / [REF] CI/CD Pipeline Outline
+
+**Stratégie de branches** : Trunk-Based Development — un seul branch `main`, feature branches éphémères (< 1 jour).
+
+**Déclencheurs** :
+- `push: [main]` → pipeline complet (build + tests + mutation nightly)
+- `pull_request: [main]` → pipeline build + tests (sans mutation)
+
+**Jobs** :
+
+| Job | Déclencheur | Durée cible | Gates |
+|---|---|---|---|
+| `build-and-test` | push + PR | < 10 min | compile GREEN, unit tests PASS, acceptance tests PASS, ArchUnit PASS |
+| `mutation-nightly` | push main uniquement | ~12h feedback | PIT mutation report uploadé |
+
+**Quality gates** :
+
+| Gate | Type | Outil | Seuil |
+|---|---|---|---|
+| Compilation | Bloquant | Maven compile | 0 erreur |
+| Tests unitaires | Bloquant | JUnit 5 (group: unit) | 100% PASS |
+| Tests d'acceptance | Bloquant | Cucumber-JVM (group: acceptance) | 100% PASS |
+| Enforcement architectural | Bloquant | ArchUnit | 0 violation |
+| Mutation testing | Informatif (nightly) | PIT | Rapport uploadé |
+
+Fichier de référence : `.github/workflows/ci.yml`
+
+---
+
+## Wave: DEVOPS / [REF] Monitoring Contracts
+
+| KPI DISCUSS | Signal observable | Instrument | Seuil |
+|---|---|---|---|
+| 100 % des chargements affichent un solde valide | `GET /api/balance` HTTP 200 + `balance.queried` log | Cucumber acceptance test + log JSON structuré | 0 erreur |
+| 100 % des dépôts valides mettent à jour l'UI | `POST /api/deposit` HTTP 200 + `deposit.completed` log | Cucumber acceptance test + log JSON structuré | 0 erreur |
+| Solde jamais négatif | Guardrail : `InsufficientFundsException` → 409 + `withdrawal.rejected` log | Cucumber property test + PIT mutation | 0 occurrence solde < 0 |
+
+**Événements de log** émis par `AccountController` via SLF4J :
+- `balance.queried` — INFO — chaque GET /api/balance réussi
+- `deposit.completed` / `deposit.rejected` — INFO — résultat de chaque POST /api/deposit
+- `withdrawal.completed` / `withdrawal.rejected` — INFO — résultat de chaque POST /api/withdraw
+- `health.startup.refused` — ERROR — probe InMemoryAccountRepository échouée au démarrage
+
+---
+
+## Wave: DEVOPS / [REF] Deployment Strategy
+
+**Stratégie retenue** : Recreate (local dev)
+
+Justification : Phase 1 cible uniquement le déploiement local en développement. Le Recreate (stop-and-replace) est la stratégie la plus simple — aucun load balancer, aucun état persistant entre redémarrages, aucun SLO de production à honorer.
+
+**Alternatives rejetées** :
+- Rolling update : inutile pour une seule instance locale sans SLO de disponibilité
+- Blue-green / Canary : complexité injustifiée pour un environnement de développement mono-développeur
+
+**Procédure de rollback** (conçue avant le rollout) :
+1. `docker compose down` — arrêt du conteneur courant
+2. `git checkout <tag-précédent>` — revenir à la version précédente
+3. `mvn -B package -DskipTests` — reconstruire l'image
+4. `docker compose up -d` — redémarrer
+5. Vérification : `curl http://localhost:8080/actuator/health` → `{"status":"UP"}`
+
+Note : les données en mémoire sont perdues à chaque redémarrage (comportement documenté Phase 1).
+
+---
+
+## Wave: DEVOPS / [REF] Mutation Testing Strategy
+
+**Stratégie** : nightly-delta
+
+**Justification** : Projet dans la phase de démarrage (< 50k LOC estimé Phase 1). La stratégie nightly-delta est choisie pour un feedback en ~12h sans bloquer la livraison feature-by-feature. PIT s'exécute uniquement sur `push: [main]` après succès du job `build-and-test`.
+
+**Outil** : PIT (org.pitest:pitest-maven)
+**Déclencheur CI** : job `mutation-nightly` — push sur main uniquement, pas sur PR
+**Périmètre** : classes du package `com.softcrafts.bankkata.domain` et `application` (logique métier)
+**Exclure** : `adapter.*`, `BankApplication` (composition root)
+**Rapport** : uploadé comme artifact GitHub Actions (`mutation-report`)
+
+Voir aussi `CLAUDE.md` section `## Mutation Testing Strategy`.
+
+---
+
+## Wave: DEVOPS / [REF] Observability Stack
+
+**Stack Phase 1** : logs JSON structurés uniquement (pas de métriques ni de traces distribués)
+
+| Pilier | Outil | Config | Justification |
+|---|---|---|---|
+| Logs | Spring Boot Logback + Logstash Logback Encoder | `logback-spring.xml` | Standard Spring Boot, JSON structuré, zéro dépendance supplémentaire |
+| Métriques | Spring Boot Actuator (`/actuator/health`) | Auto-configuré | Health check Docker + démarrage probe |
+| Traces | Non applicable Phase 1 | — | Application mono-service, pas de tracing distribué requis |
+
+**Profils Logback** :
+- Profil `local` : format texte lisible console (développeur)
+- Profil par défaut (CI / Docker) : JSON structuré LogstashEncoder
+
+Fichier de référence : `src/main/resources/logback-spring.xml`
+
+**Hors scope Phase 1** : Prometheus, Grafana, ELK Stack, Jaeger/Zipkin.
+
+---
+
+## Wave: DEVOPS / [REF] Branching Strategy
+
+**Modèle** : Trunk-Based Development
+
+| Règle | Valeur |
+|---|---|
+| Branche principale | `main` |
+| Feature branches | Éphémères (< 1 jour), préfixe `feat/` |
+| Commits directs sur main | Autorisés avec protection (tests locaux obligatoires) |
+| Release | Depuis `main` via tags `v*` |
+| Hotfix | Branche éphémère `hotfix/` → PR → main |
+
+**Protection de branche `main`** :
+- Status checks requis : `build-and-test` doit passer avant merge
+- Historique linéaire recommandé (pas de merge commits)
+
+**Déclencheurs pipeline** :
+- `push: [main]` → pipeline complet incluant mutation nightly
+- `pull_request: [main]` → pipeline build + tests (sans mutation)
+
+---
+
+## Wave: DEVOPS / [REF] Coexistence Matrix
+
+| Outil | Contrainte | Statut |
+|---|---|---|
+| IntelliJ IDEA | pom.xml standard Maven — import automatique | Compatible |
+| Maven Wrapper (mvnw) | Généré par le crafter — équivalent à `mvn` pour CI locale | Compatible |
+| Docker Desktop | Requis pour `docker compose up` en local | Requis |
+| GitHub Actions | ubuntu-latest — JDK 21 Temurin via actions/setup-java | Compatible |
+
+---
+
+## Wave: DEVOPS / [REF] Pre-requisites
+
+| Pré-requis | Responsable | Statut | Notes |
+|---|---|---|---|
+| `pom.xml` avec dépendances Spring Boot 3.x | software-crafter (DELIVER) | Requis | Inclure `logstash-logback-encoder:7.4` |
+| `spring-boot-starter-actuator` | software-crafter (DELIVER) | Requis | Pour `/actuator/health` (Docker healthcheck) |
+| `mvnw` (Maven Wrapper) | software-crafter (DELIVER) | Recommandé | CI locale sans Maven installé |
+| `SPRING_PROFILES_ACTIVE=local` | docker-compose.yml | Fourni | Profil log texte pour développeur |
+| Tags JUnit 5 `unit` et `acceptance` | software-crafter (DELIVER) | Requis | `@Tag("unit")` et `@Tag("acceptance")` dans les tests |
+| PIT configuration dans pom.xml | software-crafter (DELIVER) | Requis | `org.pitest:pitest-maven` — périmètre domain + application |
+
+---
+
+## Wave: DEVOPS / [HANDOFF] DISTILL Wave Package
+
+### Destinataire
+**software-crafter** (DELIVER wave)
+
+### Artefacts produits par DEVOPS wave
+
+| Artefact | Chemin | Statut |
+|---|---|---|
+| Environment matrix | `docs/feature/phase1-account-management/environments.yaml` | Créé |
+| CI/CD pipeline | `.github/workflows/ci.yml` | Créé |
+| Docker Compose | `docker-compose.yml` | Créé |
+| Dockerfile | `Dockerfile` | Créé |
+| Logback config JSON | `src/main/resources/logback-spring.xml` | Créé |
+| Feature delta (ce fichier) | Sections DEVOPS ajoutées | Mis à jour |
+| CLAUDE.md | Section Mutation Testing Strategy | Mis à jour |
+
+### Contrat pour le software-crafter (DELIVER wave)
+
+Le crafter doit :
+1. Créer `pom.xml` avec : `spring-boot-starter-web`, `spring-boot-starter-actuator`, `spring-boot-starter-test`, `cucumber-spring`, `logstash-logback-encoder:7.4`, `pitest-maven`
+2. Annoter les tests avec `@Tag("unit")` (tests unitaires JUnit 5) et `@Tag("acceptance")` (Cucumber)
+3. S'assurer que `mvn -B verify -Dgroups="acceptance"` exécute les scenarios Cucumber
+4. Générer `mvnw` (Maven Wrapper) pour la CI locale
+5. Configurer PIT dans `pom.xml` : périmètre `com.softcrafts.bankkata.domain.*` + `com.softcrafts.bankkata.application.*`
+6. Émettre les événements de log (`balance.queried`, `deposit.completed`, etc.) depuis `AccountController`
+
+### Décisions explicitement hors scope Phase 1 (à ne pas implémenter)
+
+- Authentification / sessions
+- HTTPS / TLS
+- Base de données persistante
+- Multi-utilisateur / multi-compte
+- Déploiement cloud ou distant

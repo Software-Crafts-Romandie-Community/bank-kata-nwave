@@ -1,0 +1,44 @@
+target_environments:
+  - name: local
+    description: "Développement local, JDK 21 installé"
+    platform: [linux, macos, windows]
+    preconditions:
+      - "JDK 21 installé (Temurin recommandé)"
+      - "Maven 3.9+ installé ou Maven Wrapper (mvnw) disponible"
+      - "Docker Desktop installé (pour docker compose up)"
+  - name: ci
+    description: "GitHub Actions ubuntu-latest"
+    platform: [linux]
+    preconditions:
+      - "GitHub Actions runner ubuntu-latest"
+      - "JDK 21 via actions/setup-java (distribution temurin)"
+      - "Maven cache activé via actions/setup-java cache: maven"
+
+coexistence_matrix:
+  - tool: IntelliJ IDEA
+    must_not_break: true
+    notes: "pom.xml standard Maven — import automatique IDEA"
+  - tool: Maven Wrapper (mvnw)
+    must_not_break: true
+    notes: "mvnw généré par le crafter — equivalent à mvn pour CI locale"
+
+platform_coverage:
+  Linux: [Ubuntu 22.04]
+  macOS: [13.x, 14.x]
+  Windows: [Windows 11]
+  CI: [GitHub Actions ubuntu-latest]
+
+deployment_assumptions:
+  - "Phase 1 : déploiement local uniquement (docker compose up)"
+  - "Pas d'authentification Phase 1 — hors scope explicite (ADR-003)"
+  - "Données en mémoire — pas de persistance entre redémarrages (comportement documenté)"
+  - "Pas de base de données Phase 1 — InMemoryAccountRepository singleton Spring"
+  - "Pas de HTTPS Phase 1 — communication localhost uniquement"
+  - "Stratégie de déploiement : Recreate (local dev — stop-and-replace)"
+
+out_of_scope_phase1:
+  - "Authentification et gestion des sessions"
+  - "HTTPS / TLS"
+  - "Base de données persistante"
+  - "Déploiement cloud ou distant"
+  - "Multi-utilisateur / multi-compte"

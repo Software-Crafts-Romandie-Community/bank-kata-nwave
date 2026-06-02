@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!--
+        Logs JSON structurés — Phase 1 observabilité
+        Stack : Spring Boot Logback + Logstash Logback Encoder
+        Dépendance Maven requise dans pom.xml (ajoutée par le crafter) :
+          <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+            <version>7.4</version>
+          </dependency>
+    -->
+
+    <!-- Profil local : sortie console lisible par le développeur -->
+    <springProfile name="local">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            </encoder>
+        </appender>
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+        <logger name="com.softcrafts.bankkata" level="DEBUG"/>
+    </springProfile>
+
+    <!-- Profil CI / défaut : JSON structuré -->
+    <springProfile name="!local">
+        <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <!-- Champs personnalisés pour le monitoring KPI -->
+                <customFields>{"service":"bank-app","phase":"phase1-account-management"}</customFields>
+                <!-- Horodatage ISO 8601 -->
+                <timestampPattern>yyyy-MM-dd'T'HH:mm:ss.SSSZZ</timestampPattern>
+                <!-- Inclure le nom du thread et le niveau -->
+                <includeCallerData>false</includeCallerData>
+            </encoder>
+        </appender>
+        <root level="INFO">
+            <appender-ref ref="JSON_CONSOLE"/>
+        </root>
+        <logger name="com.softcrafts.bankkata" level="INFO"/>
+    </springProfile>
+
+    <!--
+        Événements de monitoring KPI (alignés sur les Monitoring Contracts DEVOPS) :
+        - GET /api/balance  : log level INFO, message "balance.queried"
+        - POST /api/deposit : log level INFO, message "deposit.completed" | "deposit.rejected"
+        - POST /api/withdraw: log level INFO, message "withdrawal.completed" | "withdrawal.rejected"
+        - Démarrage refusé  : log level ERROR, message "health.startup.refused"
+        Le controller (AccountController) émet ces événements via SLF4J — aucun framework de métriques requis Phase 1.
+    -->
+
+</configuration>
