@@ -1,17 +1,18 @@
-# Bank Kata - Vision & Specification
+# Bank Application - Vision & Specification
 
 ## Overview
 
-The Bank Kata is a classic code kata that simulates a simple banking system. Rather than implementing all features in a single user story, this implementation follows an incremental, feature-driven approach where functionality is built in separate, manageable slices.
+The Bank Application is a standard web banking application that allows customers to manage their bank account through a browser interface. The application is built incrementally using a feature-driven approach, delivering end-to-end slices of value to real users.
 
 ## Core Features (Phased Delivery)
 
-### Phase 1: Account Management & Balance Display (Current)
+### Phase 1: Account Management — Web UI (Current)
 
-- **Display Account Balance**: Users can view the current balance of their account
-- **Accept Deposits**: Users can add money to their account
-- **Accept Withdrawals**: Users can withdraw money from their account
+- **Display Account Balance**: Customers can view their current balance in a browser
+- **Accept Deposits**: Customers can deposit money via a web form
+- **Accept Withdrawals**: Customers can withdraw money via a web form, with rejection on insufficient funds
 - **Balance Tracking**: System maintains accurate balance after each transaction
+- **REST API**: Backend exposes a REST API consumed by the frontend
 
 ### Phase 2: Transaction History (Future)
 
@@ -28,31 +29,38 @@ The Bank Kata is a classic code kata that simulates a simple banking system. Rat
 ## Design Principles
 
 - **Incremental Development**: Build one slice at a time, keeping features independent and testable
-- **User-Centric**: Features are entered by the user as needed, not pre-loaded
+- **User-Centric**: Features deliver value to banking customers, not just technical correctness
 - **Test-Driven**: Each feature is validated with acceptance tests before implementation
-- **Separation of Concerns**: Each feature is isolated and can be developed/tested independently
+- **Separation of Concerns**: Domain logic is isolated from web infrastructure (Hexagonal Architecture)
 
 ## Current Implementation Focus
 
-For the initial phase, the solution should:
+For Phase 1, the solution should:
 
-1. Accept user input for:
-   - Deposits (add amount to account)
-   - Withdrawals (remove amount from account)
-   - View balance (display current account balance)
+1. Expose a REST API for:
+   - `GET /api/balance` — retrieve current account balance
+   - `POST /api/deposit` — deposit an amount
+   - `POST /api/withdraw` — withdraw an amount (rejects if insufficient funds)
 
-2. Maintain account state correctly:
-   - Prevent negative balances (or handle overdrafts per design decision)
-   - Accumulate transactions accurately
+2. Provide a web frontend (HTML + JavaScript) that:
+   - Displays the current balance on page load
+   - Offers deposit and withdrawal forms
+   - Shows confirmation or error messages after each operation
 
-3. Provide clear feedback:
-   - Confirmation of successful transactions
-   - Error messages for invalid operations
+3. Maintain account state correctly:
+   - Prevent negative balances
+   - Accumulate transactions accurately in memory (Phase 1 — no database)
+
+4. Provide clear feedback to the user:
+   - Confirmation of successful transactions with updated balance
+   - Error messages for invalid operations (insufficient funds, invalid amount)
 
 ## Success Criteria
 
-- ✅ Account displays balance correctly
-- ✅ Deposits increase balance
-- ✅ Withdrawals decrease balance
-- ✅ All operations are logged for future statement generation
-- ✅ User can interactively enter transactions
+- ✅ Account balance displayed correctly in the browser
+- ✅ Deposits increase balance (visible in UI after operation)
+- ✅ Withdrawals decrease balance (visible in UI after operation)
+- ✅ Insufficient funds rejected with clear error message
+- ✅ All operations logged in memory for future statement generation (Phase 2)
+- ✅ REST API testable independently of the frontend
+- ✅ Domain logic (rules) testable independently of the REST API

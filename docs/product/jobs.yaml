@@ -1,41 +1,48 @@
 schema_version: 1
 created: 2026-06-02
+updated: 2026-06-02
 feature_source: phase1-account-management
+pivot_note: >
+  job-001 (kata CLI) et job-002 (démo web kata) remplacés par le nouveau job-001
+  suite au pivot du 2026-06-02 — projet requalifié en application web bancaire standard.
 
 jobs:
   - id: job-001
-    label: bank-account-kata-practice
+    label: bank-account-web-management
     statement: >
-      When I am learning or practicing software design skills through a kata exercise,
-      I want to manage a bank account with deposits, withdrawals, and balance display,
-      so I can focus entirely on code quality rather than figuring out what to implement.
+      When I need to manage my bank account,
+      I want to perform deposits and withdrawals and view my balance from a browser,
+      so I can stay in control of my finances without visiting a branch.
     dimensions:
       functional:
-        - Déposer un montant sur un compte
-        - Retirer un montant depuis un compte
-        - Afficher le solde courant
-        - Bloquer les retraits supérieurs au solde
+        - Afficher le solde courant dans un navigateur
+        - Deposer un montant via un formulaire web (POST /api/deposit)
+        - Retirer un montant via un formulaire web (POST /api/withdraw)
+        - Voir la confirmation ou l'erreur apres chaque operation sans rechargement de page
+        - Empecher un solde negatif (rejet avec message explicite)
       emotional:
-        - Progresser avec confiance à chaque opération validée
-        - Obtenir un feedback immédiat sans ambiguïté
+        - Se sentir en controle — chaque operation donne un retour immediat
+        - Faire confiance au systeme — les montants affiches sont toujours corrects
+        - Ne pas avoir peur de faire une erreur — des messages clairs guident la correction
       social:
-        - Produire un code kata démontrable en atelier communautaire
-        - Montrer une implémentation propre séparant domaine et interface
+        - Gerer ses finances de facon autonome sans passer par une agence
+        - Acceder a son compte depuis n'importe quel appareil avec un navigateur
     four_forces:
       push: >
-        Sans énoncé défini, le développeur perd du temps à inventer un domaine métier
-        au lieu de pratiquer les patterns de conception.
+        No way to manage account online — must call or visit branch.
+        Time-consuming, limited to business hours.
       pull: >
-        Un CLI interactif simple valide instantanément l'implémentation sans
-        infrastructure externe (base de données, réseau, framework).
+        Instant web access to account balance and transactions from any device.
+        Immediate feedback after each operation.
       anxiety: >
-        Risque de créer un solde négatif sans le gérer correctement,
-        ou de passer un atelier communautaire avec une démo cassée.
+        Fear of entering the wrong amount with no confirmation before action.
+        Uncertainty about whether the operation succeeded or failed.
       habit: >
-        Tendance à écrire des tests unitaires isolés sans intégration end-to-end,
-        ce qui laisse le comportement global non vérifié.
+        Used to calling the bank or using an ATM — learning a new web interface
+        requires trust that the system will handle errors gracefully.
+    opportunity_score: 9
     stories:
-      - slice-01-display-initial-balance
-      - slice-02-deposit
-      - slice-03-withdrawal
-      - slice-04-insufficient-funds
+      - slice-01-ws-balance-api
+      - slice-02-deposit-api
+      - slice-03-withdrawal-api
+      - slice-04-insufficient-funds-api

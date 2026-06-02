@@ -1,158 +1,192 @@
 schema_version: 1
 created: 2026-06-02
+updated: 2026-06-02
 feature: phase1-account-management
+pivot_note: >
+  Remplace le parcours CLI kata (2026-06-02).
+  Pivot vers application web bancaire standard — persona Marie, cliente bancaire grand public.
 
 journey:
-  name: "Gestion de compte bancaire — kata Phase 1"
-  goal: "Pratiquer les patterns de conception via un compte bancaire interactif"
-  persona: "Développeur kata (Software Crafts Romandie)"
+  name: "Gestion de compte bancaire — Phase 1 Web"
+  goal: "Consulter son solde, deposer et retirer de l'argent depuis un navigateur"
+  persona: "Marie — cliente bancaire, 35 ans, utilise le web pour ses finances quotidiennes"
 
   emotional_arc:
-    start: "Curieux — est-ce que mon implémentation fonctionne ?"
-    middle: "Focus et engagé — chaque opération donne un retour immédiat"
-    end: "Satisfait et confiant — kata complet, démo possible"
+    start: "Curiosite — la page va-t-elle afficher mon vrai solde ?"
+    middle: "Orientation puis Action — les formulaires sont clairs, j'ose cliquer"
+    end: "Satisfaction et Confiance — le solde mis a jour confirme que ca a marche"
 
 steps:
   - id: 1
-    name: "Démarrage et affichage du solde initial"
-    action: "Lancer le programme"
-    tui_mockup: |
-      ╔══════════════════════════════╗
-      ║   Bank Kata — Compte        ║
-      ╠══════════════════════════════╣
-      ║  Solde actuel : 0,00 €      ║
-      ╠══════════════════════════════╣
-      ║  1. Déposer                 ║
-      ║  2. Retirer                 ║
-      ║  3. Afficher le solde       ║
-      ║  4. Quitter                 ║
-      ╚══════════════════════════════╝
-      Votre choix :
+    name: "Ouvrir le navigateur et charger la page"
+    action: "Naviguer vers http://localhost:8080"
+    web_mockup: |
+      +-----------------------------------------------+
+      | Bank — Gestion de compte          [localhost]  |
+      +-----------------------------------------------+
+      |                                               |
+      |   Solde actuel                                |
+      |   +-----------------------------------+       |
+      |   |   0,00 EUR                        |       |
+      |   +-----------------------------------+       |
+      |                                               |
+      |   [ Deposer ]     [ Retirer ]                 |
+      |                                               |
+      +-----------------------------------------------+
     shared_artifacts:
       - name: balance
-        source: "Account domain object"
-        displayed_as: "${balance}"
+        source: "Account domain object — expose via GET /api/balance"
+        displayed_as: "${balance} EUR"
         consumers:
-          - "Menu principal (après chaque action)"
-          - "Commande 'Afficher le solde'"
+          - "Page HTML au chargement (fetch GET /api/balance)"
+          - "Reponse JSON apres POST /api/deposit"
+          - "Reponse JSON apres POST /api/withdraw"
+          - "Message d'erreur fonds insuffisants"
     emotional_state:
-      entry: "Curiosité — le développeur lance pour la première fois"
-      exit: "Orientation — le menu est clair, les options évidentes"
-    integration_checkpoint: "Account initialisé avec solde = 0,00 €"
+      entry: "Curiosite — Marie ouvre la page pour la premiere fois"
+      exit: "Orientation — le solde est visible, deux actions sont proposees"
+    integration_checkpoint: |
+      GET /api/balance repond 200 OK avec {"balance": "0.00"}
+      La page HTML affiche correctement le montant recu.
     failure_modes:
-      - "Programme ne démarre pas (erreur compilation/runtime)"
+      - "Serveur non demarre — erreur reseau navigateur"
+      - "Reponse malformee — page affiche NaN ou vide"
+      - "CORS bloque la requete fetch (si frontend servi separement)"
+    gherkin: |
+      Scenario: Le solde initial est visible au chargement de la page
+        Given Marie ouvre son navigateur et charge http://localhost:8080
+        When la page se charge completement
+        Then Marie voit son solde affiche : "0,00 EUR"
+        And deux boutons "Deposer" et "Retirer" sont visibles
 
   - id: 2
-    name: "Dépôt d'un montant"
-    action: "Choisir option 1, saisir un montant positif"
-    tui_mockup: |
-      Montant à déposer : 100
-      ✓ Dépôt de 100,00 € effectué.
-      Solde actuel : 100,00 €
-
-      Appuyez sur Entrée pour continuer...
+    name: "Saisir et valider un depot"
+    action: "Cliquer sur 'Deposer', saisir un montant, confirmer"
+    web_mockup: |
+      +-----------------------------------------------+
+      |   Deposer un montant                          |
+      |   +-----------------------------------+       |
+      |   | Montant : [  150,00         ]     |       |
+      |   +-----------------------------------+       |
+      |   [ Confirmer ]    [ Annuler ]                |
+      |                                               |
+      |   ✓ Depot de 150,00 EUR effectue.             |
+      |   Nouveau solde : 150,00 EUR                  |
+      +-----------------------------------------------+
     shared_artifacts:
       - name: balance
-        source: "Account domain object"
-        displayed_as: "${balance}"
+        source: "Account domain object — mis a jour apres deposit()"
+        displayed_as: "${balance} EUR"
         consumers:
-          - "Confirmation dépôt"
-          - "Menu principal"
+          - "Confirmation inline apres depot"
+          - "Solde affiche en haut de page (rafraichi)"
     emotional_state:
-      entry: "Focus — saisie d'un montant"
-      exit: "Satisfaction — confirmation immédiate visible"
-    integration_checkpoint: "balance = balance_précédent + montant_déposé"
+      entry: "Action — Marie saisit un montant avec attention"
+      exit: "Satisfaction — la confirmation est immediate, le solde est mis a jour"
+    integration_checkpoint: |
+      POST /api/deposit {"amount": "150.00"} repond 200 OK
+      Reponse contient {"balance": "150.00"}
+      Page affiche le nouveau solde sans rechargement complet
     failure_modes:
-      - "Montant nul ou négatif saisi"
-      - "Saisie non numérique"
+      - "Montant nul ou negatif saisi — reponse 400 Bad Request"
+      - "Montant non numerique — validation frontend avant envoi"
+    gherkin: |
+      Scenario: Depot augmente le solde visible dans l'interface
+        Given Marie a un solde de 0,00 EUR affiche dans le navigateur
+        When Marie clique sur "Deposer", saisit 150,00 EUR et confirme
+        Then la page affiche "Depot de 150,00 EUR effectue"
+        And le solde affiche est mis a jour a 150,00 EUR
 
   - id: 3
-    name: "Retrait avec solde suffisant"
-    action: "Choisir option 2, saisir un montant ≤ solde"
-    tui_mockup: |
-      Montant à retirer : 30
-      ✓ Retrait de 30,00 € effectué.
-      Solde actuel : 70,00 €
-
-      Appuyez sur Entrée pour continuer...
+    name: "Saisir et valider un retrait avec solde suffisant"
+    action: "Cliquer sur 'Retirer', saisir un montant inferieur ou egal au solde, confirmer"
+    web_mockup: |
+      +-----------------------------------------------+
+      |   Retirer un montant                          |
+      |   +-----------------------------------+       |
+      |   | Montant : [   50,00         ]     |       |
+      |   +-----------------------------------+       |
+      |   [ Confirmer ]    [ Annuler ]                |
+      |                                               |
+      |   ✓ Retrait de 50,00 EUR effectue.            |
+      |   Nouveau solde : 100,00 EUR                  |
+      +-----------------------------------------------+
     shared_artifacts:
       - name: balance
-        source: "Account domain object"
-        displayed_as: "${balance}"
+        source: "Account domain object — mis a jour apres withdraw()"
+        displayed_as: "${balance} EUR"
         consumers:
-          - "Confirmation retrait"
-          - "Menu principal"
+          - "Confirmation inline apres retrait"
+          - "Solde affiche en haut de page (rafraichi)"
     emotional_state:
-      entry: "Focus — saisie d'un retrait"
-      exit: "Confiance — le solde décroît correctement"
-    integration_checkpoint: "balance = balance_précédent - montant_retiré"
+      entry: "Attention — Marie verifie le montant avant de confirmer"
+      exit: "Confiance — le retrait s'est effectue, le solde est correct"
+    integration_checkpoint: |
+      POST /api/withdraw {"amount": "50.00"} repond 200 OK
+      Reponse contient {"balance": "100.00"}
+      Page affiche le nouveau solde
     failure_modes:
-      - "Montant supérieur au solde → rejet (voir step 4)"
-      - "Montant nul ou négatif saisi"
-      - "Saisie non numérique"
+      - "Montant superieur au solde — rejet 409 Conflict (voir step 4)"
+      - "Montant nul ou negatif — reponse 400 Bad Request"
+    gherkin: |
+      Scenario: Retrait valide diminue le solde visible dans l'interface
+        Given Marie a un solde de 150,00 EUR affiche dans le navigateur
+        When Marie clique sur "Retirer", saisit 50,00 EUR et confirme
+        Then la page affiche "Retrait de 50,00 EUR effectue"
+        And le solde affiche est mis a jour a 100,00 EUR
 
   - id: 4
-    name: "Rejet retrait insuffisant"
-    action: "Choisir option 2, saisir un montant > solde"
-    tui_mockup: |
-      Montant à retirer : 500
-      ✗ Retrait refusé : fonds insuffisants.
-        Solde disponible : 70,00 € — demande : 500,00 €.
-
-      Appuyez sur Entrée pour continuer...
+    name: "Tentative de retrait avec fonds insuffisants"
+    action: "Cliquer sur 'Retirer', saisir un montant superieur au solde, confirmer"
+    web_mockup: |
+      +-----------------------------------------------+
+      |   Retirer un montant                          |
+      |   +-----------------------------------+       |
+      |   | Montant : [  500,00         ]     |       |
+      |   +-----------------------------------+       |
+      |   [ Confirmer ]    [ Annuler ]                |
+      |                                               |
+      |   ✗ Fonds insuffisants.                       |
+      |     Solde disponible : 100,00 EUR             |
+      |     Demande : 500,00 EUR                      |
+      |   Le solde reste inchange.                    |
+      +-----------------------------------------------+
     shared_artifacts:
       - name: balance
-        source: "Account domain object"
-        displayed_as: "${balance}"
+        source: "Account domain object — inchange apres rejet"
+        displayed_as: "${balance} EUR"
         consumers:
-          - "Message d'erreur retrait refusé"
+          - "Message d'erreur fonds insuffisants"
+          - "Solde affiche (confirme inchange)"
     emotional_state:
-      entry: "Incertitude — que va-t-il se passer ?"
-      exit: "Réassurance — le message est clair, le solde est intact"
-    integration_checkpoint: "balance inchangé après rejet"
+      entry: "Incertitude — que va-t-il se passer si je retire plus que mon solde ?"
+      exit: "Reassurance — le message est clair, le solde est intact, aucune donnee perdue"
+    integration_checkpoint: |
+      POST /api/withdraw {"amount": "500.00"} repond 409 Conflict
+      Reponse contient {"error": "insufficient_funds", "balance": "100.00"}
+      Page affiche le message d'erreur, solde inchange
     failure_modes:
-      - "Solde modifié malgré le rejet (bug critique)"
-
-  - id: 5
-    name: "Affichage du solde"
-    action: "Choisir option 3"
-    tui_mockup: |
-      Solde actuel : 70,00 €
-
-      Appuyez sur Entrée pour continuer...
-    shared_artifacts:
-      - name: balance
-        source: "Account domain object"
-        displayed_as: "${balance}"
-        consumers:
-          - "Affichage solde à la demande"
-    emotional_state:
-      entry: "Curiosité — vérification de l'état"
-      exit: "Confiance — état cohérent avec les opérations précédentes"
-    integration_checkpoint: "balance affiché = balance réel de Account"
-    failure_modes:
-      - "Solde affiché différent du solde réel"
-
-  - id: 6
-    name: "Quitter"
-    action: "Choisir option 4"
-    tui_mockup: |
-      Au revoir !
-    shared_artifacts: []
-    emotional_state:
-      entry: "Satisfaction — kata terminé"
-      exit: "Confiance — implémentation validée, démo prête"
-    integration_checkpoint: "Fermeture propre sans exception"
-    failure_modes:
-      - "Exception non capturée à la fermeture"
+      - "Solde modifie malgre le rejet (bug critique domaine)"
+      - "Erreur 500 au lieu de 409 — reponse non structuree"
+    gherkin: |
+      Scenario: Retrait refuse si fonds insuffisants — solde inchange
+        Given Marie a un solde de 100,00 EUR affiche dans le navigateur
+        When Marie clique sur "Retirer", saisit 500,00 EUR et confirme
+        Then la page affiche "Fonds insuffisants — solde disponible : 100,00 EUR"
+        And le solde reste affiche a 100,00 EUR
 
 integration_validation:
   shared_artifact_consistency:
-    - artifact: "balance"
-      must_match_across: [1, 2, 3, 4, 5]
-      failure_message: "Le solde affiché doit toujours refléter l'état réel de Account"
+    - artifact: balance
+      must_match_across: [1, 2, 3, 4]
+      failure_message: >
+        Le solde affiche dans le navigateur doit toujours reflechir l'etat reel
+        de Account apres chaque operation (depot, retrait, rejet).
 
 changelog:
   - date: "2026-06-02"
     feature: "phase1-account-management"
-    change: "Création initiale — wave DISCUSS Phase 1"
+    change: >
+      Remplacement du parcours CLI kata par le parcours web bancaire standard.
+      Pivot : persona developpeur -> Marie (cliente bancaire grand public).
+      Interface : CLI stdin/stdout -> navigateur + REST API Spring Boot 3.x.

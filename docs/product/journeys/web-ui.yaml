@@ -1,0 +1,242 @@
+schema_version: 1
+created: 2026-06-02
+feature: phase2-web-ui
+
+journey:
+  name: "Interface web bancaire — kata Phase 2"
+  goal: "Démontrer que le port AccountUseCase fonctionne via un adaptateur HTTP (sans modifier le domaine)"
+  persona: "Lucas Petit — développeur kata Software Crafts Romandie, Phase 1 complétée"
+
+  emotional_arc:
+    start: "Curiosité — est-ce que ma page charge et affiche le bon solde ?"
+    middle: "Confiance — chaque opération web produit le même résultat qu'en CLI"
+    end: "Fierté — démo web complète, architecture hexagonale prouvée en atelier"
+
+steps:
+  - id: 1
+    name: "Ouvrir la page web"
+    action: "Naviguer vers http://localhost:8080"
+    web_mockup: |
+      +------------------------------------------+
+      |  Bank Kata — Compte                      |
+      +------------------------------------------+
+      |                                          |
+      |  Solde actuel                            |
+      |  +-----------+                           |
+      |  |  0,00 €   |                           |
+      |  +-----------+                           |
+      |                                          |
+      |  [ Déposer ]    [ Retirer ]              |
+      |                                          |
+      +------------------------------------------+
+
+    shared_artifacts:
+      - name: balance
+        source: "Account domain object (AccountUseCase.getBalance())"
+        displayed_as: "${balance}"
+        consumers:
+          - "Affichage solde page principale"
+          - "Réponse JSON GET /api/balance"
+          - "Réponse JSON POST /api/deposit (solde mis à jour)"
+          - "Réponse JSON POST /api/withdraw (solde mis à jour)"
+
+    emotional_state:
+      entry: "Curiosité — la page va-t-elle charger ?"
+      exit: "Orientation — balance visible, les deux actions sont claires"
+
+    integration_checkpoint: |
+      GET /api/balance renvoie { "balance": 0.00 }
+      Frontend affiche "0,00 €" correctement
+
+    failure_modes:
+      - "Serveur non démarré → erreur réseau navigateur (hors scope UI)"
+      - "CORS non configuré → requête AJAX bloquée"
+      - "Solde non initialisé → NullPointerException côté serveur"
+
+    gherkin: |
+      Scenario: La page web affiche le solde initial
+        Given le serveur HTTP est démarré sur le port 8080
+        And le compte est initialisé avec un solde de 0,00 €
+        When Lucas ouvre http://localhost:8080 dans son navigateur
+        Then la page affiche "Solde actuel : 0,00 €"
+        And deux boutons "Déposer" et "Retirer" sont visibles
+        And shared artifact "${balance}" vaut 0,00 €
+
+  - id: 2
+    name: "Déposer un montant"
+    action: "Cliquer 'Déposer', saisir un montant positif, confirmer"
+    web_mockup: |
+      +------------------------------------------+
+      |  Bank Kata — Compte                      |
+      +------------------------------------------+
+      |                                          |
+      |  Montant à déposer :                     |
+      |  +------------------+  [ Valider ]       |
+      |  |  100             |                    |
+      |  +------------------+                    |
+      |                                          |
+      |  Dépôt de 100,00 € effectué.            |
+      |  Solde actuel : 100,00 €                 |
+      |                                          |
+      |  [ Nouveau dépôt ]  [ Retirer ]          |
+      |                                          |
+      +------------------------------------------+
+
+    shared_artifacts:
+      - name: balance
+        source: "Account domain object (après AccountUseCase.deposit())"
+        displayed_as: "${balance}"
+        consumers:
+          - "Message de confirmation dépôt"
+          - "Affichage solde mis à jour"
+          - "Réponse JSON POST /api/deposit"
+
+    emotional_state:
+      entry: "Focus — saisie du montant dans le formulaire"
+      exit: "Satisfaction — confirmation visible immédiatement, solde mis à jour"
+
+    integration_checkpoint: |
+      POST /api/deposit { "amount": 100 }
+      Réponse : { "success": true, "balance": 100.00 }
+      Frontend met à jour le solde sans rechargement de page
+
+    failure_modes:
+      - "Montant nul ou négatif → message d'erreur inline"
+      - "Saisie non numérique → validation côté frontend avant envoi"
+      - "Requête POST échoue → message d'erreur réseau"
+
+    gherkin: |
+      Scenario: Lucas dépose un montant et voit le solde mis à jour
+        Given Lucas est sur la page principale avec un solde de 0,00 €
+        When il clique sur "Déposer"
+        And il saisit 100 dans le champ montant
+        And il clique sur "Valider"
+        Then la page affiche "Dépôt de 100,00 € effectué"
+        And le solde affiché devient 100,00 €
+        And shared artifact "${balance}" vaut 100,00 €
+
+      Scenario: Montant de dépôt invalide — erreur affichée en ligne
+        Given Lucas est sur le formulaire de dépôt
+        When il saisit -50 dans le champ montant
+        And il clique sur "Valider"
+        Then un message d'erreur "Le montant doit être supérieur à 0" apparaît sous le champ
+        And le solde reste inchangé
+        And aucun rechargement de page ne se produit
+
+  - id: 3
+    name: "Retirer un montant (solde suffisant)"
+    action: "Cliquer 'Retirer', saisir un montant ≤ solde, confirmer"
+    web_mockup: |
+      +------------------------------------------+
+      |  Bank Kata — Compte                      |
+      +------------------------------------------+
+      |                                          |
+      |  Montant à retirer :                     |
+      |  +------------------+  [ Valider ]       |
+      |  |  30              |                    |
+      |  +------------------+                    |
+      |                                          |
+      |  Retrait de 30,00 € effectué.           |
+      |  Solde actuel : 70,00 €                  |
+      |                                          |
+      |  [ Déposer ]  [ Nouveau retrait ]        |
+      |                                          |
+      +------------------------------------------+
+
+    shared_artifacts:
+      - name: balance
+        source: "Account domain object (après AccountUseCase.withdraw())"
+        displayed_as: "${balance}"
+        consumers:
+          - "Message de confirmation retrait"
+          - "Affichage solde mis à jour"
+          - "Réponse JSON POST /api/withdraw"
+
+    emotional_state:
+      entry: "Focus — saisie du montant à retirer"
+      exit: "Confiance — le solde décroît correctement, même règle que Phase 1"
+
+    integration_checkpoint: |
+      POST /api/withdraw { "amount": 30 }
+      Réponse : { "success": true, "balance": 70.00 }
+      Frontend met à jour le solde sans rechargement de page
+
+    failure_modes:
+      - "Fonds insuffisants → message d'erreur clair (voir step 4)"
+      - "Montant nul ou négatif → validation inline"
+      - "Saisie non numérique → validation côté frontend"
+
+    gherkin: |
+      Scenario: Lucas retire un montant avec fonds suffisants
+        Given Lucas est sur la page principale avec un solde de 100,00 €
+        When il clique sur "Retirer"
+        And il saisit 30 dans le champ montant
+        And il clique sur "Valider"
+        Then la page affiche "Retrait de 30,00 € effectué"
+        And le solde affiché devient 70,00 €
+        And shared artifact "${balance}" vaut 70,00 €
+
+  - id: 4
+    name: "Retrait refusé — fonds insuffisants"
+    action: "Saisir un montant de retrait supérieur au solde"
+    web_mockup: |
+      +------------------------------------------+
+      |  Bank Kata — Compte                      |
+      +------------------------------------------+
+      |                                          |
+      |  Montant à retirer :                     |
+      |  +------------------+  [ Valider ]       |
+      |  |  500             |                    |
+      |  +------------------+                    |
+      |                                          |
+      |  Fonds insuffisants.                     |
+      |  Solde disponible : 70,00 €              |
+      |  Demande : 500,00 €                      |
+      |                                          |
+      |  [ Déposer ]  [ Nouveau retrait ]        |
+      |                                          |
+      +------------------------------------------+
+
+    shared_artifacts:
+      - name: balance
+        source: "Account domain object (inchangé après rejet)"
+        displayed_as: "${balance}"
+        consumers:
+          - "Message d'erreur retrait refusé"
+          - "Réponse JSON POST /api/withdraw { success: false }"
+
+    emotional_state:
+      entry: "Incertitude — que va-t-il se passer ?"
+      exit: "Réassurance — le message est clair, le solde est intact, même comportement que CLI"
+
+    integration_checkpoint: |
+      POST /api/withdraw { "amount": 500 }
+      Réponse : { "success": false, "error": "INSUFFICIENT_FUNDS", "balance": 70.00 }
+      Frontend affiche le message d'erreur sans modifier le solde affiché
+
+    failure_modes:
+      - "Solde modifié malgré le rejet (bug critique domaine)"
+      - "Message d'erreur technique exposé (NullPointerException dans la réponse)"
+
+    gherkin: |
+      Scenario: Retrait refusé pour fonds insuffisants
+        Given Lucas est sur la page principale avec un solde de 70,00 €
+        When il clique sur "Retirer"
+        And il saisit 500 dans le champ montant
+        And il clique sur "Valider"
+        Then la page affiche "Fonds insuffisants — solde disponible : 70,00 €"
+        And le solde reste affiché à 70,00 €
+        And shared artifact "${balance}" est inchangé à 70,00 €
+
+integration_validation:
+  shared_artifact_consistency:
+    - artifact: "balance"
+      must_match_across: [1, 2, 3, 4]
+      failure_message: >
+        Le solde affiché dans le navigateur doit toujours refléter l'état réel
+        du domain object Account, via AccountUseCase — jamais calculé côté frontend.
+
+changelog:
+  - date: "2026-06-02"
+    feature: "phase2-web-ui"
+    change: "Création initiale — wave DISCUSS Phase 2"
