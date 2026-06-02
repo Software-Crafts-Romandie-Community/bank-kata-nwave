@@ -1,0 +1,158 @@
+schema_version: 1
+created: 2026-06-02
+feature: phase1-account-management
+
+journey:
+  name: "Gestion de compte bancaire — kata Phase 1"
+  goal: "Pratiquer les patterns de conception via un compte bancaire interactif"
+  persona: "Développeur kata (Software Crafts Romandie)"
+
+  emotional_arc:
+    start: "Curieux — est-ce que mon implémentation fonctionne ?"
+    middle: "Focus et engagé — chaque opération donne un retour immédiat"
+    end: "Satisfait et confiant — kata complet, démo possible"
+
+steps:
+  - id: 1
+    name: "Démarrage et affichage du solde initial"
+    action: "Lancer le programme"
+    tui_mockup: |
+      ╔══════════════════════════════╗
+      ║   Bank Kata — Compte        ║
+      ╠══════════════════════════════╣
+      ║  Solde actuel : 0,00 €      ║
+      ╠══════════════════════════════╣
+      ║  1. Déposer                 ║
+      ║  2. Retirer                 ║
+      ║  3. Afficher le solde       ║
+      ║  4. Quitter                 ║
+      ╚══════════════════════════════╝
+      Votre choix :
+    shared_artifacts:
+      - name: balance
+        source: "Account domain object"
+        displayed_as: "${balance}"
+        consumers:
+          - "Menu principal (après chaque action)"
+          - "Commande 'Afficher le solde'"
+    emotional_state:
+      entry: "Curiosité — le développeur lance pour la première fois"
+      exit: "Orientation — le menu est clair, les options évidentes"
+    integration_checkpoint: "Account initialisé avec solde = 0,00 €"
+    failure_modes:
+      - "Programme ne démarre pas (erreur compilation/runtime)"
+
+  - id: 2
+    name: "Dépôt d'un montant"
+    action: "Choisir option 1, saisir un montant positif"
+    tui_mockup: |
+      Montant à déposer : 100
+      ✓ Dépôt de 100,00 € effectué.
+      Solde actuel : 100,00 €
+
+      Appuyez sur Entrée pour continuer...
+    shared_artifacts:
+      - name: balance
+        source: "Account domain object"
+        displayed_as: "${balance}"
+        consumers:
+          - "Confirmation dépôt"
+          - "Menu principal"
+    emotional_state:
+      entry: "Focus — saisie d'un montant"
+      exit: "Satisfaction — confirmation immédiate visible"
+    integration_checkpoint: "balance = balance_précédent + montant_déposé"
+    failure_modes:
+      - "Montant nul ou négatif saisi"
+      - "Saisie non numérique"
+
+  - id: 3
+    name: "Retrait avec solde suffisant"
+    action: "Choisir option 2, saisir un montant ≤ solde"
+    tui_mockup: |
+      Montant à retirer : 30
+      ✓ Retrait de 30,00 € effectué.
+      Solde actuel : 70,00 €
+
+      Appuyez sur Entrée pour continuer...
+    shared_artifacts:
+      - name: balance
+        source: "Account domain object"
+        displayed_as: "${balance}"
+        consumers:
+          - "Confirmation retrait"
+          - "Menu principal"
+    emotional_state:
+      entry: "Focus — saisie d'un retrait"
+      exit: "Confiance — le solde décroît correctement"
+    integration_checkpoint: "balance = balance_précédent - montant_retiré"
+    failure_modes:
+      - "Montant supérieur au solde → rejet (voir step 4)"
+      - "Montant nul ou négatif saisi"
+      - "Saisie non numérique"
+
+  - id: 4
+    name: "Rejet retrait insuffisant"
+    action: "Choisir option 2, saisir un montant > solde"
+    tui_mockup: |
+      Montant à retirer : 500
+      ✗ Retrait refusé : fonds insuffisants.
+        Solde disponible : 70,00 € — demande : 500,00 €.
+
+      Appuyez sur Entrée pour continuer...
+    shared_artifacts:
+      - name: balance
+        source: "Account domain object"
+        displayed_as: "${balance}"
+        consumers:
+          - "Message d'erreur retrait refusé"
+    emotional_state:
+      entry: "Incertitude — que va-t-il se passer ?"
+      exit: "Réassurance — le message est clair, le solde est intact"
+    integration_checkpoint: "balance inchangé après rejet"
+    failure_modes:
+      - "Solde modifié malgré le rejet (bug critique)"
+
+  - id: 5
+    name: "Affichage du solde"
+    action: "Choisir option 3"
+    tui_mockup: |
+      Solde actuel : 70,00 €
+
+      Appuyez sur Entrée pour continuer...
+    shared_artifacts:
+      - name: balance
+        source: "Account domain object"
+        displayed_as: "${balance}"
+        consumers:
+          - "Affichage solde à la demande"
+    emotional_state:
+      entry: "Curiosité — vérification de l'état"
+      exit: "Confiance — état cohérent avec les opérations précédentes"
+    integration_checkpoint: "balance affiché = balance réel de Account"
+    failure_modes:
+      - "Solde affiché différent du solde réel"
+
+  - id: 6
+    name: "Quitter"
+    action: "Choisir option 4"
+    tui_mockup: |
+      Au revoir !
+    shared_artifacts: []
+    emotional_state:
+      entry: "Satisfaction — kata terminé"
+      exit: "Confiance — implémentation validée, démo prête"
+    integration_checkpoint: "Fermeture propre sans exception"
+    failure_modes:
+      - "Exception non capturée à la fermeture"
+
+integration_validation:
+  shared_artifact_consistency:
+    - artifact: "balance"
+      must_match_across: [1, 2, 3, 4, 5]
+      failure_message: "Le solde affiché doit toujours refléter l'état réel de Account"
+
+changelog:
+  - date: "2026-06-02"
+    feature: "phase1-account-management"
+    change: "Création initiale — wave DISCUSS Phase 1"

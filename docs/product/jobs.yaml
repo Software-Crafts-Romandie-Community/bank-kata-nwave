@@ -1,0 +1,41 @@
+schema_version: 1
+created: 2026-06-02
+feature_source: phase1-account-management
+
+jobs:
+  - id: job-001
+    label: bank-account-kata-practice
+    statement: >
+      When I am learning or practicing software design skills through a kata exercise,
+      I want to manage a bank account with deposits, withdrawals, and balance display,
+      so I can focus entirely on code quality rather than figuring out what to implement.
+    dimensions:
+      functional:
+        - Déposer un montant sur un compte
+        - Retirer un montant depuis un compte
+        - Afficher le solde courant
+        - Bloquer les retraits supérieurs au solde
+      emotional:
+        - Progresser avec confiance à chaque opération validée
+        - Obtenir un feedback immédiat sans ambiguïté
+      social:
+        - Produire un code kata démontrable en atelier communautaire
+        - Montrer une implémentation propre séparant domaine et interface
+    four_forces:
+      push: >
+        Sans énoncé défini, le développeur perd du temps à inventer un domaine métier
+        au lieu de pratiquer les patterns de conception.
+      pull: >
+        Un CLI interactif simple valide instantanément l'implémentation sans
+        infrastructure externe (base de données, réseau, framework).
+      anxiety: >
+        Risque de créer un solde négatif sans le gérer correctement,
+        ou de passer un atelier communautaire avec une démo cassée.
+      habit: >
+        Tendance à écrire des tests unitaires isolés sans intégration end-to-end,
+        ce qui laisse le comportement global non vérifié.
+    stories:
+      - slice-01-display-initial-balance
+      - slice-02-deposit
+      - slice-03-withdrawal
+      - slice-04-insufficient-funds
