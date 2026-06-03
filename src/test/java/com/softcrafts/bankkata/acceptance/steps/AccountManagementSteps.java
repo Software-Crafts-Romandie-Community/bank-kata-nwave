@@ -137,9 +137,16 @@ public class AccountManagementSteps {
 
     @Then("the balance shown is never below {double} euros")
     public void theBalanceShownIsNeverBelow(double floor) throws Exception {
-        lastResult
+        mockMvc.perform(get("/api/balance").accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.balance").value(org.hamcrest.Matchers.greaterThanOrEqualTo(floor)));
+                .andExpect(result -> {
+                    String content = result.getResponse().getContentAsString();
+                    java.math.BigDecimal actualBalance = new com.fasterxml.jackson.databind.ObjectMapper()
+                            .readTree(content).get("balance").decimalValue();
+                    if (actualBalance.compareTo(java.math.BigDecimal.valueOf(floor)) < 0) {
+                        throw new AssertionError("Balance " + actualBalance + " is below floor " + floor);
+                    }
+                });
     }
 
     @And("the withdrawal is refused with an insufficient funds message")

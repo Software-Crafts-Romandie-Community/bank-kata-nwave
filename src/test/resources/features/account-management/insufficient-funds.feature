@@ -33,7 +33,7 @@ Feature: Insufficient funds protection
     Then the withdrawal is refused with an insufficient funds message showing 300.00 euros available
     And the balance shown is 300.00 euros
 
-  @skip @property
+  @property
   Scenario: The account balance is never negative regardless of withdrawal attempts
     Given a new bank account with no transactions
     When the customer attempts to withdraw any amount greater than their balance
