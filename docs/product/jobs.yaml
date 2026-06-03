@@ -3,7 +3,7 @@ created: 2026-06-02
 updated: 2026-06-02
 feature_source: phase1-account-management
 pivot_note: >
-  job-001 (kata CLI) et job-002 (démo web kata) remplacés par le nouveau job-001
+  job-001 (CLI) et job-002 (démo web) remplacés par le nouveau job-001
   suite au pivot du 2026-06-02 — projet requalifié en application web bancaire standard.
 
 jobs:

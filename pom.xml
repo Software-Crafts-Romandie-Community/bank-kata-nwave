@@ -13,12 +13,12 @@
     </parent>
 
     <groupId>com.softcrafts</groupId>
-    <artifactId>bank-kata</artifactId>
+    <artifactId>bank-application</artifactId>
     <version>0.1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
-    <name>bank-kata</name>
-    <description>Bank Kata — Hexagonal Architecture with Spring Boot 3 and Java 21</description>
+    <name>bank-application</name>
+    <description>Bank Application — Hexagonal Architecture with Spring Boot 3 and Java 21</description>
 
     <properties>
         <java.version>21</java.version>

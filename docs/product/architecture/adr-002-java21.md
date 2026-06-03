@@ -2,21 +2,19 @@
 
 **Statut** : Accepté  
 **Date** : 2026-06-02  
-**Décideur** : Participant kata (choix confirmé en DESIGN wave)  
+**Décideur** : Sylvain Chabert (décision confirmée en DESIGN wave)  
 **Architecte** : Morgan (solution-architect nWave)
 
 ---
 
 ## Contexte
 
-La contrainte [REQ-001] du DISCUSS wave indique que le kata est polyglotte — le participant choisit
-son langage. En DESIGN wave, le participant a sélectionné **Java** comme langage cible.
-
-La question devient : **quelle version de Java retenir pour un kata en 2026 ?**
+Le langage cible est **Java** (choix de Sylvain Chabert, confirmé en DESIGN wave). La question est :
+**quelle version de Java retenir pour une application web bancaire en 2026 ?**
 
 Contraintes :
-- Kata pédagogique — la version doit être accessible sur les postes d'atelier standards
-- Pas de framework applicatif — Java pur
+- Application web bancaire — la version doit être LTS, stable, et supportée en production
+- Framework : Spring Boot 3.x (décision ADR-003)
 - Objectif : utiliser les fonctionnalités du langage qui illustrent les patterns de design OOP
   (value objects, exceptions métier, interfaces comme ports)
 - La version doit être stable, bien supportée par les IDE (IntelliJ, Eclipse, VS Code + plugins Java)
@@ -31,11 +29,11 @@ Licence : GPL v2 + Classpath Exception (OpenJDK) — conforme à la politique OS
 Support LTS : jusqu'à septembre 2031 (Oracle) / sources communautaires.  
 Distribution recommandée : Temurin 21 (Eclipse Adoptium, Apache 2.0) — installable via `sdk install java 21-tem`.
 
-Fonctionnalités Java 21 exploitées dans ce kata :
+Fonctionnalités Java 21 exploitées dans cette application :
 - **Records** (stable depuis Java 16) : `Transaction` est un Record — value object immutable sans boilerplate
 - **Sealed classes** (stable depuis Java 17, optionnel) : peut servir à typer les résultats d'opération si le crafter le souhaite
-- **Text blocks** (stable depuis Java 15) : messages CLI lisibles
-- **Pattern matching `instanceof`** (stable depuis Java 16) : optionnel, utile en CLIAdapter
+- **Text blocks** (stable depuis Java 15) : templates et chaînes multilignes lisibles
+- **Pattern matching `instanceof`** (stable depuis Java 16) : optionnel, utile dans les adaptateurs
 
 ---
 
@@ -59,7 +57,7 @@ Fonctionnalités Java 21 exploitées dans ce kata :
 - Inconvénients : Records absents (Java 16+) — `Transaction` doit être une classe avec equals/hashCode
   manuels, ce qui alourdit le code pédagogique sans bénéfice ; fin de support étendu proche
 
-**Rejeté** : l'absence de Records dégrade la lisibilité pédagogique du kata.
+**Rejeté** : l'absence de Records dégrade la lisibilité du code.
 
 ---
 
@@ -68,7 +66,7 @@ Fonctionnalités Java 21 exploitées dans ce kata :
 **Évaluation** :
 - Avantages : data classes natives, null-safety, syntaxe concise, interop Java
 - Inconvénients : le participant a explicitement choisi Java ; Kotlin introduit une courbe
-  d'apprentissage supplémentaire et des outils de build additionnels — hors scope de ce kata
+  d'apprentissage supplémentaire et des outils de build additionnels — hors scope de ce projet Phase 1
 
 **Rejeté** : hors du périmètre décisionnel (Java sélectionné par le participant).
 
@@ -88,9 +86,9 @@ Fonctionnalités Java 21 exploitées dans ce kata :
 ### Négatives / Compromis
 
 - **Version minimale** : les participants avec Java 11 doivent mettre à jour. Mitigation :
-  SDKMAN ou Temurin permettent l'installation parallèle sans droits admin sur la plupart des postes d'atelier.
+  SDKMAN ou Temurin permettent l'installation parallèle sans droits admin sur la plupart des environnements de développement.
 - **`--enable-preview`** non requis : les fonctionnalités utilisées sont toutes stables en Java 21
-  (pas de features preview nécessaires pour ce kata).
+  (pas de features preview nécessaires pour cette application).
 
 ---
 

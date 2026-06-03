@@ -3,7 +3,7 @@ created: 2026-06-02
 updated: 2026-06-02
 feature: phase1-account-management
 pivot_note: >
-  Remplace le parcours CLI kata (2026-06-02).
+  Remplace le parcours CLI (2026-06-02).
   Pivot vers application web bancaire standard — persona Marie, cliente bancaire grand public.
 
 journey:
@@ -187,6 +187,6 @@ changelog:
   - date: "2026-06-02"
     feature: "phase1-account-management"
     change: >
-      Remplacement du parcours CLI kata par le parcours web bancaire standard.
+      Remplacement du parcours CLI par le parcours web bancaire standard.
       Pivot : persona developpeur -> Marie (cliente bancaire grand public).
       Interface : CLI stdin/stdout -> navigateur + REST API Spring Boot 3.x.

@@ -3,9 +3,9 @@ created: 2026-06-02
 feature: phase2-web-ui
 
 journey:
-  name: "Interface web bancaire — kata Phase 2"
+  name: "Interface web bancaire — Phase 2"
   goal: "Démontrer que le port AccountUseCase fonctionne via un adaptateur HTTP (sans modifier le domaine)"
-  persona: "Lucas Petit — développeur kata Software Crafts Romandie, Phase 1 complétée"
+  persona: "Lucas Petit — développeur fullstack, Phase 1 complétée"
 
   emotional_arc:
     start: "Curiosité — est-ce que ma page charge et affiche le bon solde ?"
@@ -18,7 +18,7 @@ steps:
     action: "Naviguer vers http://localhost:8080"
     web_mockup: |
       +------------------------------------------+
-      |  Bank Kata — Compte                      |
+      |  Bank Application — Compte                      |
       +------------------------------------------+
       |                                          |
       |  Solde actuel                            |
@@ -67,7 +67,7 @@ steps:
     action: "Cliquer 'Déposer', saisir un montant positif, confirmer"
     web_mockup: |
       +------------------------------------------+
-      |  Bank Kata — Compte                      |
+      |  Bank Application — Compte                      |
       +------------------------------------------+
       |                                          |
       |  Montant à déposer :                     |
@@ -128,7 +128,7 @@ steps:
     action: "Cliquer 'Retirer', saisir un montant ≤ solde, confirmer"
     web_mockup: |
       +------------------------------------------+
-      |  Bank Kata — Compte                      |
+      |  Bank Application — Compte                      |
       +------------------------------------------+
       |                                          |
       |  Montant à retirer :                     |
@@ -181,7 +181,7 @@ steps:
     action: "Saisir un montant de retrait supérieur au solde"
     web_mockup: |
       +------------------------------------------+
-      |  Bank Kata — Compte                      |
+      |  Bank Application — Compte                      |
       +------------------------------------------+
       |                                          |
       |  Montant à retirer :                     |
@@ -207,7 +207,7 @@ steps:
 
     emotional_state:
       entry: "Incertitude — que va-t-il se passer ?"
-      exit: "Réassurance — le message est clair, le solde est intact, même comportement que CLI"
+      exit: "Réassurance — le message est clair, le solde est intact"
 
     integration_checkpoint: |
       POST /api/withdraw { "amount": 500 }

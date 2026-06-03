@@ -2,26 +2,26 @@
 
 **Statut** : Accepté  
 **Date** : 2026-06-02  
-**Décideur** : Participant kata (choix confirmé en DESIGN wave)  
+**Décideur** : Sylvain Chabert (décision confirmée en DESIGN wave)  
 **Architecte** : Morgan (solution-architect nWave)
 
 ---
 
 ## Contexte
 
-Le Bank Kata Phase 1 est un exercice pédagogique dont l'objectif explicite (slice-04) est de
-démontrer l'**isolation des règles métier du CLI**. Le critère d'acceptation clé est :
-"la règle de rejet est vérifiable indépendamment du CLI (testable en isolation)".
+La Bank Application Phase 1 est une application web bancaire (pivot 2026-06-02). L'objectif
+hexagonal (slice-04) est de démontrer l'**isolation des règles métier du transport HTTP**.
+Le critère d'acceptation clé est :
+"la règle de rejet est vérifiable indépendamment du transport (testable en isolation)".
 
 Contraintes identifiées :
-- Equipe = 1 développeur en atelier (taille d'équipe minimal)
+- Equipe = 1-2 développeurs (taille d'équipe minimale)
 - Greenfield — aucune dette technique préexistante
-- Périmètre = 4 slices, ~2 jours d'effort
+- Périmètre = 4 slices Phase 1, ~2 jours d'effort
 - Pas de persistance externe (Phase 1), pas de réseau, pas d'API tierce
-- Objectif secondaire : le code produit doit être démontrable et lisible en mob programming
 
 La question de design centrale est : **quelle structure architecturale illustre le mieux
-l'isolation des règles métier tout en restant accessible à un participant atelier ?**
+l'isolation des règles métier tout en restant maintenable pour une petite équipe ?**
 
 ---
 
@@ -33,7 +33,7 @@ Structure :
 - **Ports primaires (driving)** : `AccountUseCase` — interface définissant les cas d'usage entrants
 - **Ports secondaires (driven)** : `AccountRepository` — interface pour l'accès au compte
 - **Domaine pur** : `Account` + `Transaction` (Record) + `InsufficientFundsException` — aucune dépendance vers les couches externes
-- **Adaptateurs** : `CLIAdapter` (driving) et `InMemoryAccountRepository` (driven) — couche externe substituable
+- **Adaptateurs** : `AccountController` (driving, @RestController) et `InMemoryAccountRepository` (driven) — couche externe substituable
 
 Règle de dépendance : toutes les flèches d'import pointent vers l'intérieur (domaine).
 Le domaine n'importe aucune classe d'infrastructure ou d'adaptateur.
@@ -48,14 +48,14 @@ Le domaine n'importe aucune classe d'infrastructure ou d'adaptateur.
 composition de fonctions comme mécanisme principal d'organisation.
 
 **Évaluation** :
-- Avantages : testabilité maximale (fonctions déterministes), cohérence avec certains paradigmes kata
+- Avantages : testabilité maximale (fonctions déterministes), cohérence avec certains paradigmes d'apprentissage
 - Inconvénients pour ce contexte :
   - Java 21 n'est pas un langage FP natif — émulation FP en Java produit une cérémonie syntaxique
     élevée (streams, Optional chaînés, lambdas imbriqués) qui nuit à la lisibilité pédagogique
-  - Le kata est explicitement conçu pour pratiquer les patterns OOP (selon le contexte DISCUSS)
+  - L'application est explicitement conçue avec le paradigme OOP (décision ADR-001 confirmée)
   - `Either` en Java nécessite une bibliothèque tierce (Vavr) ou un implémentation manuelle — complexité injustifiée
 
-**Rejeté** : le bénéfice FP ne compense pas le bruit syntaxique Java pour un public kata OOP.
+**Rejeté** : le bénéfice FP ne compense pas le bruit syntaxique Java pour le paradigme OOP choisi.
 
 ---
 
@@ -86,7 +86,7 @@ Dépendances strictement descendantes.
   unitaires n'ont pas besoin de mock pour le cœur métier
 - **Isolation pédagogique visible** : la règle `InsufficientFundsException` est physiquement dans
   le package `domain`, sa localisation est auto-documentante
-- **Extensibilité Phase 2** : `StatementService` s'ajoute sans modifier `Account` ni `CLIAdapter`
+- **Extensibilité Phase 2** : `StatementService` s'ajoute sans modifier `Account` ni `AccountController`
 - **Substituabilité** : `InMemoryAccountRepository` peut être remplacé par un adapter JDBC ou
   fichier sans modifier `AccountService`
 
@@ -94,7 +94,7 @@ Dépendances strictement descendantes.
 
 - **Cérémonie supplémentaire** : Hexagonal introduit 2 interfaces (`AccountUseCase`,
   `AccountRepository`) qui ne seraient pas nécessaires dans une architecture monolithique simple.
-  Pour un kata de 4 slices, cette cérémonie est acceptable car elle est l'objectif pédagogique.
+  Pour une application Phase 1 de 4 slices, cette cérémonie est justifiée par les bénéfices structurels de l'injection de dépendances Spring.
 - **Indirection supplémentaire** : un participant débutant doit naviguer entre 3 couches pour
   comprendre le flux complet. Mitigation : la structure de packages et les C4 dans le brief.md
   documentent l'architecture explicitement.
@@ -112,7 +112,7 @@ Règles ArchUnit (Apache 2.0) à activer en CI :
 
 - Evans, E. — *Domain-Driven Design* (2003) — concept d'isolation du domaine
 - Cockburn, A. — *Hexagonal Architecture* (2005) — pattern Ports & Adapters
-- slice-04 AC : "La règle de rejet est vérifiable indépendamment du CLI"
+- slice-04 AC : "La règle de rejet est vérifiable indépendamment du transport HTTP"
 
 ---
 

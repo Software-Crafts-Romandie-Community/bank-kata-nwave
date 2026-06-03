@@ -1,6 +1,6 @@
-# Architecture Brief — Bank Kata
+# Architecture Brief — Bank Application
 
-**Projet** : Bank Kata — Software Crafts Romandie  
+**Projet** : Bank Application — Software Crafts Romandie  
 **Date** : 2026-06-02  
 **Architecte** : Morgan (solution-architect nWave)  
 **Statut** : Approuvé — prêt pour DISTILL wave
@@ -243,7 +243,7 @@ Règles à encoder en CI via ArchUnit :
 
 ### Analyse de réutilisation (Reuse Analysis)
 
-| Composant existant (kata) | Fichier | Overlap | Decision | Justification |
+| Composant existant (CLI original) | Fichier | Overlap | Decision | Justification |
 |---|---|---|---|---|
 | `Account` | `domain/Account.java` | Logique domaine | REUSE AS-IS | La règle "solde >= 0" est indépendante du transport |
 | `Transaction` | `domain/Transaction.java` | Value object | REUSE AS-IS | Record immuable, indépendant du transport |
@@ -254,7 +254,7 @@ Règles à encoder en CI via ArchUnit :
 | `InMemoryAccountRepository` | `adapter/out/` | Stockage mémoire | EXTEND (bean Spring) | Ajouter `@Component` pour l'injection Spring, singleton géré par le conteneur |
 | `CLIAdapter` | `adapter/in/` | Driving port CLI | **REMOVE** | Remplacé par `AccountController` (@RestController) |
 | `Main` | `Main.java` | Point d'entrée | **REPLACE** | `@SpringBootApplication` remplace le `main()` manuel |
-| `AccountController` | `adapter/in/web/` | Driving port HTTP | CREATE NEW | Nouveau composant — pas d'équivalent dans le kata CLI |
+| `AccountController` | `adapter/in/web/` | Driving port HTTP | CREATE NEW | Nouveau composant — pas d'équivalent dans le CLI original |
 | `DepositRequest` | `adapter/in/web/` | DTO entrant | CREATE NEW | Nouveau — spécifique au transport HTTP |
 | `WithdrawRequest` | `adapter/in/web/` | DTO entrant | CREATE NEW | Nouveau — spécifique au transport HTTP |
 | `BalanceResponse` | `adapter/in/web/` | DTO sortant | CREATE NEW | Nouveau — spécifique au transport HTTP |

@@ -88,7 +88,7 @@ justifient pas l'écart par rapport au standard Spring Boot.
 externe.
 
 **Évaluation** :
-- Avantages : zéro dépendance, parfaitement conforme à l'objectif kata initial "Java pur"
+- Avantages : zéro dépendance, parfaitement conforme à l'objectif initial "Java pur"
 - Inconvénients pour ce contexte :
   - Non conçu pour un usage de production — pas de gestion des threads avancée, pas de support
     HTTPS natif, pas de sérialisation JSON intégrée
@@ -97,7 +97,7 @@ externe.
     port réseau en CI
   - Le pivot vers une "application web bancaire standard" rend cet outillage inadapté à l'objectif
 
-**Rejeté** : niveau de production insuffisant pour une application web bancaire ; le kata a
+**Rejeté** : niveau de production insuffisant pour une application web bancaire ; le projet a
 explicitement évolué au-delà de ce périmètre.
 
 ---
