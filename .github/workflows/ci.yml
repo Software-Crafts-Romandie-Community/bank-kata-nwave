@@ -28,7 +28,7 @@ jobs:
         run: mvn -B compile
 
       - name: Unit Tests
-        run: mvn -B test -Dgroups="unit" -DfailIfNoTests=false -Dexcludes="**/acceptance/**Test.java"
+        run: mvn -B test -Dgroups="unit" -DfailIfNoTests=false -Dexcludes="**/acceptance/*Test.java"
 
       - name: Acceptance Tests (Cucumber)
         run: mvn -B verify -Dgroups="acceptance"
