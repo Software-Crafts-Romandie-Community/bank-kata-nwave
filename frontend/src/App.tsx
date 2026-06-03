@@ -15,12 +15,8 @@ function resolveErrorMessage(err: unknown, type: OperationType): string {
   if (apiErr.status === 409 && apiErr.available !== undefined) {
     return `Fonds insuffisants — solde disponible : ${formatEur(apiErr.available)}`
   }
-  if (apiErr.status === 400) {
-    return 'Montant invalide'
-  }
-  if (type === 'deposit') {
-    return 'Erreur lors du dépôt.'
-  }
+  if (apiErr.status === 400) return 'Montant invalide'
+  if (type === 'deposit') return 'Erreur lors du dépôt.'
   return 'Erreur lors du retrait.'
 }
 
@@ -48,10 +44,30 @@ export default function App() {
   }
 
   return (
-    <main>
-      <h1>Bank Application</h1>
-      <BalanceDisplay balance={balance} error={balanceError} />
-      <OperationForm onSubmit={handleOperation} error={operationError} />
-    </main>
+    <div className="app">
+      <header className="app-header">
+        <span className="app-header__wordmark">Banque</span>
+        <span className="app-header__subtitle">Tableau de bord</span>
+      </header>
+
+      <main className="app-body">
+        <BalanceDisplay balance={balance} error={balanceError} />
+
+        <div className="section-divider" aria-hidden="true">Opération</div>
+
+        <OperationForm onSubmit={handleOperation} error={operationError} />
+      </main>
+
+      <footer className="app-footer">
+        <span className="app-footer__note">Transactions sécurisées</span>
+        <span className="app-footer__note">
+          {new Date().toLocaleDateString('fr-FR', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          })}
+        </span>
+      </footer>
+    </div>
   )
 }

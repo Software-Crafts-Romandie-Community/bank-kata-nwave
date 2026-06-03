@@ -3,20 +3,38 @@ interface BalanceDisplayProps {
   error: string | null
 }
 
-function formatEur(amount: number): string {
-  return amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
+function formatAmount(amount: number): string {
+  return amount.toLocaleString('fr-FR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
 }
 
 export default function BalanceDisplay({ balance, error }: BalanceDisplayProps) {
   if (error !== null) {
-    return <p className="error">{error}</p>
+    return (
+      <div className="balance">
+        <p className="balance__label">Solde actuel</p>
+        <p className="error-message">{error}</p>
+      </div>
+    )
   }
-  if (balance === null) {
-    return <p>Chargement du solde...</p>
-  }
+
   return (
     <div className="balance">
-      <h2>Solde : {formatEur(balance)}</h2>
+      <p className="balance__label">Solde actuel</p>
+      <div className="balance__card">
+        <div className="balance__card-inner">
+          {balance === null ? (
+            <span className="balance__loading">Chargement du solde...</span>
+          ) : (
+            <>
+              <span className="balance__amount">{formatAmount(balance)}</span>
+              <span className="balance__currency-tag">euros</span>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
