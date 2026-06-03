@@ -185,7 +185,7 @@ Slice minimale end-to-end connectant toutes les activites :
 
 - **Framework** : Spring Boot 3.x — driving adapter HTTP (`@RestController`)
 - **Langage** : Java 21 LTS (Temurin, Apache 2.0) — inchange depuis ADR-002
-- **Frontend** : HTML vanilla + JavaScript fetch API — pas de framework JS (React, Vue hors scope Phase 1)
+- **Frontend** : React 18 + TypeScript + Vite — projet frontend autonome dans `frontend/`, build intégré Maven (`frontend-maven-plugin`)
 - **Persistance** : InMemoryAccountRepository — singleton Spring — en memoire uniquement (Phase 1)
 - **Type monetaire** : `BigDecimal` pour tous les calculs (ADR-002 conserve)
 - **Format JSON** : montants serialises en String avec 2 decimales (`"150.00"`)
@@ -341,7 +341,7 @@ InsufficientFundsException, AccountUseCase, AccountRepository, AccountService) e
 | `WithdrawRequest` | adapter/in/web | CREATE NEW | DTO entrant — montant du retrait |
 | `BalanceResponse` | adapter/in/web | CREATE NEW | DTO sortant — solde courant |
 | `BankApplication` | composition root | CREATE NEW | @SpringBootApplication — remplace Main |
-| `index.html` + `app.js` | static resources | CREATE NEW | Frontend HTML vanilla |
+| `frontend/` | static resources (build output) | CREATE NEW | Projet Vite + React 18 + TypeScript — `frontend/src/api/`, `components/BalanceDisplay`, `components/OperationForm`, `App.tsx`. Tests : Vitest + React Testing Library. Build → `src/main/resources/static/` |
 
 ---
 
@@ -387,7 +387,7 @@ Aucune logique metier dans les ressources statiques.
 | Assertions | AssertJ | 3.x | Apache 2.0 | Assertions fluides |
 | Mocking | Mockito | 5.x | MIT | Isolation ports driven |
 | Build | Maven ou Gradle | derniere stable | Apache 2.0 | Standard Java |
-| Frontend | HTML + JavaScript | Vanilla | — | Minimalisme — pas de framework JS Phase 1 |
+| Frontend | React 18 + TypeScript | Vite 5.x | MIT | Standard industriel — projet autonome `frontend/`, proxy dev vers Spring Boot :8080, intégré Maven via frontend-maven-plugin |
 | Enforcement | ArchUnit | 1.x | Apache 2.0 | Verifie regles hexagonales ET absence imports Spring dans domain |
 
 ---
@@ -811,3 +811,35 @@ Le crafter doit :
 - Base de données persistante
 - Multi-utilisateur / multi-compte
 - Déploiement cloud ou distant
+
+---
+
+## Wave: DELIVER / [WHY] Upstream Issues
+
+**Date** : 2026-06-03
+**Rapporté par** : orchestrateur nw-deliver
+**Statut** : Résolu — back-propagation appliquée
+
+### Issue UI-01 — Décision "pas de framework JS" supersédée
+
+| Dimension | Valeur |
+|---|---|
+| Waves impactées | DESIGN (System Constraints + Technology Stack), DEVOPS (Environment Matrix) |
+| Décision originale | "HTML vanilla + JavaScript fetch API — pas de framework JS (React, Vue hors scope Phase 1)" |
+| Nouvelle décision | React 18 + TypeScript + Vite — projet `frontend/` autonome, intégré Maven via `frontend-maven-plugin`, tests Vitest + RTL |
+| Motif du changement | Application React bien architecturée et testée exigée — CDN + Babel standalone rejeté (pas de tests, pas de build réel) |
+| Impact sur le roadmap | Step 05-01 mis à jour (spec Vite + TS + tests, remplacement des fichiers CDN) |
+
+**Back-propagation appliquée :**
+- `feature-delta.md` — sections DESIGN / System Constraints + Technology Stack + Component Decomposition mises à jour
+- `docs/product/architecture/brief.md` — Stack technologique + Contexte système mis à jour
+- `roadmap.json` — phase 05 / step 05-01 mise à jour (spec Vite + TS + tests)
+
+**Décisions techniques associées à React 18 + Vite + TypeScript :**
+- Projet autonome dans `frontend/` avec `package.json`, `vite.config.ts`, `tsconfig.json`
+- Dev : Vite dev server `:5173` avec proxy `/api` → `http://localhost:8080` (pas de CORS)
+- Prod : `npm run build` → `src/main/resources/static/` (servi par Spring Boot)
+- Architecture composants : `api/bankApi.ts` (client typé), `BalanceDisplay`, `OperationForm`, `App`
+- Tests : Vitest + React Testing Library + jsdom (`npm run test:run` dans la phase Maven `test`)
+- Intégration Maven : `frontend-maven-plugin` (Eirslett) — Node 20 téléchargé automatiquement, `npm install`, build, tests
+- Aucun routeur (SPA mono-page Phase 1)

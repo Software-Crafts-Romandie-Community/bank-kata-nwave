@@ -253,6 +253,69 @@
       "s": "SKIPPED",
       "d": "NOT_APPLICABLE: property invariant proven by the AT concrete example \u2014 balance query via GET /api/balance with BigDecimal comparison, no inner-loop unit-test decomposition needed",
       "t": "2026-06-03T01:33:18Z"
+    },
+    {
+      "sid": "05-01",
+      "p": "PREPARE",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: no Java scaffold needed \u2014 static resources only (index.html, app.js)",
+      "t": "2026-06-03T13:40:44Z"
+    },
+    {
+      "sid": "05-01",
+      "p": "RED_ACCEPTANCE",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: no Cucumber feature file for static frontend assets \u2014 acceptance coverage provided by existing MockMvc AT suite for REST API endpoints",
+      "t": "2026-06-03T13:40:48Z"
+    },
+    {
+      "sid": "05-01",
+      "p": "RED_UNIT",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: no Java unit tests for static HTML/JS assets \u2014 no test runner (Jest/Vitest) in scope for Phase 1 CDN-only setup",
+      "t": "2026-06-03T13:40:52Z"
+    },
+    {
+      "sid": "05-01",
+      "p": "GREEN",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-06-03T13:42:11Z"
+    },
+    {
+      "sid": "05-01",
+      "p": "COMMIT",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-06-03T15:35:13Z"
+    },
+    {
+      "sid": "05-01",
+      "p": "PREPARE",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-06-03T16:51:15Z"
+    },
+    {
+      "sid": "05-01",
+      "p": "RED_ACCEPTANCE",
+      "s": "SKIPPED",
+      "d": "NOT_APPLICABLE: no Cucumber scenario for this step",
+      "t": "2026-06-03T16:51:20Z"
+    },
+    {
+      "sid": "05-01",
+      "p": "RED_UNIT",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-06-03T16:52:48Z"
+    },
+    {
+      "sid": "05-01",
+      "p": "GREEN",
+      "s": "EXECUTED",
+      "d": "PASS",
+      "t": "2026-06-03T17:26:23Z"
     }
   ]
 }

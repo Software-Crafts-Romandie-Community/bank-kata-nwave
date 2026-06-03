@@ -2,7 +2,7 @@
   "roadmap": {
     "project_id": "phase1-account-management",
     "created_at": "2026-06-02T19:03:33Z",
-    "total_steps": 7
+    "total_steps": 8
   },
   "phases": [
     {
@@ -165,6 +165,53 @@
           "files_to_modify": [
             "src/main/java/com/softcrafts/bankkata/domain/Account.java",
             "src/test/java/com/softcrafts/bankkata/acceptance/steps/AccountManagementSteps.java"
+          ]
+        }
+      ]
+    }
+  ],
+    {
+      "id": "05",
+      "name": "React Frontend",
+      "steps": [
+        {
+          "id": "05-01",
+          "name": "Frontend React 18 + TypeScript + Vite — application bancaire complète avec tests",
+          "criteria": [
+            "frontend/ créé — projet Vite + React 18 + TypeScript autonome avec package.json, vite.config.ts, tsconfig.json",
+            "frontend/src/api/bankApi.ts — client API typé (getBalance, deposit, withdraw) avec gestion erreurs (ApiError interface)",
+            "frontend/src/components/BalanceDisplay — composant + tests Vitest/RTL (loading, balance formatée EUR, erreur fetch)",
+            "frontend/src/components/OperationForm — composant + tests Vitest/RTL (submit, succès 200, erreur 400, erreur 409)",
+            "frontend/src/App.tsx + App.test.tsx — fetch au montage, solde affiché, erreurs inline après opérations",
+            "npm run test:run PASS (tous les tests Vitest verts)",
+            "mvn test PASS (16 tests Java inchangés)",
+            "pom.xml mis à jour avec frontend-maven-plugin (install Node, npm install, npm run build, npm run test:run)",
+            "src/main/resources/static/ contient le build Vite produit (index.html + assets/)",
+            "Ancien index.html CDN + app.js CDN supprimés (remplacés par le build Vite)"
+          ],
+          "test_file": null,
+          "scenario_name": null,
+          "implementation_notes": "SUPPRIMER src/main/resources/static/index.html et app.js (CDN, à remplacer). Créer frontend/ avec Vite + React + TypeScript. Architecture : frontend/src/api/bankApi.ts (fetch typé), frontend/src/types/index.ts (BalanceResponse, ApiError), frontend/src/components/BalanceDisplay/, frontend/src/components/OperationForm/, frontend/src/App.tsx, frontend/src/main.tsx, frontend/src/test/setup.ts. vite.config.ts : proxy /api → http://localhost:8080, build.outDir = '../src/main/resources/static', test.environment = 'jsdom'. Tests : vi.mock('../api/bankApi') dans les tests de composants. pom.xml : ajouter frontend-maven-plugin (com.github.eirslett) avec phases install-node-and-npm (v20.x), npm install, npm run build (generate-resources), npm run test:run (test). Ajouter frontend/node_modules/ et frontend/dist/ à .gitignore. Interface en français, solde formaté via toLocaleString fr-FR EUR.",
+          "files_to_modify": [
+            "frontend/package.json",
+            "frontend/vite.config.ts",
+            "frontend/tsconfig.json",
+            "frontend/tsconfig.node.json",
+            "frontend/index.html",
+            "frontend/src/main.tsx",
+            "frontend/src/App.tsx",
+            "frontend/src/App.test.tsx",
+            "frontend/src/api/bankApi.ts",
+            "frontend/src/types/index.ts",
+            "frontend/src/components/BalanceDisplay/BalanceDisplay.tsx",
+            "frontend/src/components/BalanceDisplay/BalanceDisplay.test.tsx",
+            "frontend/src/components/OperationForm/OperationForm.tsx",
+            "frontend/src/components/OperationForm/OperationForm.test.tsx",
+            "frontend/src/test/setup.ts",
+            "pom.xml",
+            ".gitignore",
+            "src/main/resources/static/index.html",
+            "src/main/resources/static/app.js"
           ]
         }
       ]

@@ -19,8 +19,8 @@
 
 La Bank Application est une application web bancaire standard. Marie, cliente bancaire grand
 public, interagit depuis son navigateur pour consulter son solde, effectuer des dépôts et des
-retraits. Le backend expose une REST API (Spring Boot 3.x) consommée par un frontend HTML
-vanilla servi par le même serveur. Il n'y a aucune dépendance externe (pas de base de données
+retraits. Le backend expose une REST API (Spring Boot 3.x) consommée par un frontend React 18
+servi par le même serveur. Il n'y a aucune dépendance externe (pas de base de données
 Phase 1, pas d'API tierce). Le compte est maintenu en mémoire (in-process, singleton Spring).
 
 ---
@@ -59,7 +59,7 @@ C4Container
 
   Person(marie, "Marie", "Cliente bancaire")
 
-  Container(browser, "Navigateur", "HTML + JavaScript vanilla", "Affiche le solde et les formulaires. Envoie les requetes fetch vers l'API REST.")
+  Container(browser, "Navigateur", "React 18 + TypeScript (Vite)", "Affiche le solde et les formulaires. Envoie les requetes fetch vers l'API REST.")
   Container(staticRes, "Static Resources", "Spring Boot static — src/main/resources/static/", "Sert index.html et app.js sur GET /. Aucune logique metier.")
   Container(controller, "AccountController", "Java 21 — @RestController Spring Boot", "Adaptateur driving HTTP. Traduit les requetes REST en appels AccountUseCase. Traduit les exceptions domaine en codes HTTP.")
   Container(service, "AccountService", "Java 21 — application", "Orchestre les cas d'usage : deposer, retirer, consulter le solde. Implements AccountUseCase. Aucune dependance Spring.")
@@ -117,7 +117,7 @@ la règle de dépendance hexagonale et l'enforcement ArchUnit deviennent critiqu
 | `BalanceResponse` | adapter/in/web | DTO sortant (Java Record) — solde courant formaté |
 | `InMemoryAccountRepository` | adapter/out | Adaptateur driven (@Component, singleton Spring) — implémente `AccountRepository` en mémoire |
 | `BankApplication` | composition root | @SpringBootApplication — démarre le contexte Spring, câble les beans |
-| `index.html` + `app.js` | static resources | Frontend HTML vanilla — consomme l'API REST via fetch |
+| `frontend/` (build → `static/`) | static resources | Projet Vite + React 18 + TypeScript — `api/bankApi.ts`, `BalanceDisplay`, `OperationForm`, `App`. Tests Vitest + RTL. Build Maven → `src/main/resources/static/` |
 
 ---
 
@@ -222,7 +222,7 @@ src/
 | Assertions | AssertJ | 3.x | Apache 2.0 | Assertions fluides |
 | Mocking | Mockito | 5.x | MIT | Isolation des ports driven pour tests unitaires |
 | Build | Maven ou Gradle | dernière stable | Apache 2.0 | Standard Java — choix laissé au crafter |
-| Frontend | HTML + JavaScript | Vanilla | — | Minimalisme — pas de framework frontend Phase 1 |
+| Frontend | React 18 + TypeScript | Vite 5.x | MIT | Standard industriel — projet `frontend/` autonome, proxy dev → :8080, build produit dans `src/main/resources/static/`, tests Vitest + RTL |
 | Enforcement architectural | ArchUnit | 1.x | Apache 2.0 | Vérifie les règles de dépendance hexagonale ET l'absence d'imports Spring dans le domaine |
 
 **Intégrations externes** : aucune — pas d'annotation de contract testing requise.
