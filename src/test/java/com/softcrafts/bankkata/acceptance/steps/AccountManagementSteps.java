@@ -122,17 +122,20 @@ public class AccountManagementSteps {
 
     @Then("the deposit is refused with an invalid amount message")
     public void theDepositIsRefusedWithAnInvalidAmountMessage() throws Exception {
-        lastResult.andExpect(status().isBadRequest());
+        lastResult.andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("Invalid amount"));
     }
 
     @Then("the withdrawal is refused with an invalid amount message")
     public void theWithdrawalIsRefusedWithAnInvalidAmountMessage() throws Exception {
-        lastResult.andExpect(status().isBadRequest());
+        lastResult.andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("Invalid amount"));
     }
 
     @Then("the withdrawal is refused with an insufficient funds message showing {double} euros available")
     public void theWithdrawalIsRefusedWithInsufficientFundsMessageShowing(double availableBalance) throws Exception {
-        lastResult.andExpect(status().isConflict());
+        lastResult.andExpect(status().isConflict())
+                .andExpect(jsonPath("$.available").value(availableBalance));
     }
 
     @Then("the balance shown is never below {double} euros")
