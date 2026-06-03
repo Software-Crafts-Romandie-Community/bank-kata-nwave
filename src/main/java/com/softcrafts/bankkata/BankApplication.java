@@ -8,10 +8,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 
 /**
- * Spring Boot composition root — BankApplication.
+ * Spring Boot composition root.
  *
- * Wires AccountController -> AccountUseCase -> AccountService -> AccountRepository -> InMemoryAccountRepository.
- * The Spring IoC container handles all injection.
+ * Declares AccountService as a bean to keep Spring annotations out of the hexagonal core.
  */
 @SpringBootApplication
 public class BankApplication {

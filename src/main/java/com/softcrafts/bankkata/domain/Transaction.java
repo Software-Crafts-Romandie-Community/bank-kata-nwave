@@ -4,8 +4,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 /**
- * Transaction value object — immutable record.
- * Captures the type, amount, and timestamp of each account operation.
+ * Immutable record of a single account operation.
  *
  * No Spring annotations — pure domain object.
  */

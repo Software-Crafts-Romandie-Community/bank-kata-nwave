@@ -9,11 +9,6 @@ import java.math.BigDecimal;
 /**
  * Application service implementing the AccountUseCase driving port.
  *
- * Responsibilities:
- * - Delegates use-case operations to the Account domain aggregate
- * - Persists state changes via AccountRepository
- * - Contains zero HTTP or Spring logic
- *
  * No Spring annotations — declared as a bean by the composition root (BankApplication).
  */
 public class AccountService implements AccountUseCase {

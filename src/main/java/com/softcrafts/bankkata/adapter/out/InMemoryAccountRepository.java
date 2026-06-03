@@ -39,18 +39,4 @@ public class InMemoryAccountRepository implements AccountRepository {
     public void reset() {
         this.account = new Account();
     }
-
-    /**
-     * Startup probe — validates create / load / save round-trip.
-     * Throws RuntimeException on failure to prevent the application from accepting traffic.
-     */
-    public void probe() {
-        Account probe = new Account();
-        save(probe);
-        Account loaded = load();
-        if (loaded == null) {
-            throw new RuntimeException("InMemoryAccountRepository probe failed: load returned null");
-        }
-        reset();
-    }
 }
