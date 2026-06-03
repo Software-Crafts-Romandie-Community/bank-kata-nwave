@@ -19,14 +19,14 @@ Feature: Customer withdraws money from their account
     When the customer withdraws 33.33 euros
     Then the balance shown is 66.67 euros
 
-  @skip @error
+  @error
   Scenario: A withdrawal of zero is rejected and the balance stays unchanged
     Given the customer has already deposited 100.00 euros
     When the customer attempts to withdraw 0.00 euros
     Then the withdrawal is refused with an invalid amount message
     And the balance shown is 100.00 euros
 
-  @skip @error
+  @error
   Scenario: A negative withdrawal amount is rejected and the balance stays unchanged
     Given the customer has already deposited 100.00 euros
     When the customer attempts to withdraw -50.00 euros
