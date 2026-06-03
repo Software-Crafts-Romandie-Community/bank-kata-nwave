@@ -21,14 +21,14 @@ Feature: Customer deposits money into their account
     When the customer deposits 50.00 euros
     Then the balance shown is 250.00 euros
 
-  @skip @error
+  @error
   Scenario: A deposit of zero is rejected and the balance stays unchanged
     Given a new bank account with no transactions
     When the customer attempts to deposit 0.00 euros
     Then the deposit is refused with an invalid amount message
     And the balance shown is 0.00 euros
 
-  @skip @error
+  @error
   Scenario: A negative deposit amount is rejected and the balance stays unchanged
     Given the customer has already deposited 100.00 euros
     When the customer attempts to deposit -10.00 euros

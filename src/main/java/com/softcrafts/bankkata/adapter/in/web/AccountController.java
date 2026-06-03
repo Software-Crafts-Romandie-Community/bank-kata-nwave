@@ -1,6 +1,9 @@
 package com.softcrafts.bankkata.adapter.in.web;
 
 import com.softcrafts.bankkata.application.port.in.AccountUseCase;
+import com.softcrafts.bankkata.domain.InsufficientFundsException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -9,11 +12,12 @@ import org.springframework.web.bind.annotation.*;
  *
  * Endpoints:
  * - GET  /api/balance  → 200 BalanceResponse
- * - POST /api/deposit  → 200 BalanceResponse | 400 Problem Details (invalid amount)
- * - POST /api/withdraw → 200 BalanceResponse | 400 Problem Details (invalid amount)
- *                                             | 409 Problem Details (insufficient funds)
+ * - POST /api/deposit  → 200 BalanceResponse | 400 ProblemDetail (invalid amount)
+ * - POST /api/withdraw → 200 BalanceResponse | 400 ProblemDetail (invalid amount)
+ *                                             | 409 ProblemDetail (insufficient funds)
  *
  * Contains ZERO business logic — all rules enforced by AccountUseCase / Account domain.
+ * Exception mapping: IllegalArgumentException → 400, InsufficientFundsException → 409.
  */
 @RestController
 @RequestMapping("/api")
@@ -38,5 +42,18 @@ public class AccountController {
     @PostMapping("/withdraw")
     public ResponseEntity<?> withdraw(@RequestBody WithdrawRequest request) {
         return ResponseEntity.ok(new BalanceResponse(accountUseCase.withdraw(request.amount())));
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ProblemDetail> handleInvalidAmount(IllegalArgumentException exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Invalid amount");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+    }
+
+    @ExceptionHandler(InsufficientFundsException.class)
+    public ResponseEntity<ProblemDetail> handleInsufficientFunds(InsufficientFundsException exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "Insufficient funds");
+        problem.setProperty("available", exception.getAvailableBalance());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
     }
 }
