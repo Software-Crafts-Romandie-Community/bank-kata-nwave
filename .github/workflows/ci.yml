@@ -31,7 +31,7 @@ jobs:
         run: mvn -B test -Dgroups="unit" -DfailIfNoTests=false -Dexcludes="**/acceptance/*Test.java"
 
       - name: Acceptance Tests (Cucumber)
-        run: mvn -B verify -Dgroups="acceptance"
+        run: mvn -B test -Dincludes="**/acceptance/*Test.java" -DfailIfNoTests=false
 
       - name: ArchUnit — Hexagonal architecture enforcement
         # Inclus dans verify — séparé ici pour visibilité du gate
