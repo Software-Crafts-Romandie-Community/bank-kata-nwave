@@ -1,5 +1,11 @@
 # Bank Application — nWave Project
 
+## Project Status
+
+- **Phase 1 — Account Management (Web UI)**: ✅ Terminée, finalisée via `/nw-finalize` → résumé dans `docs/evolution/2026-06-16-phase1-account-management.md` (le workspace `docs/feature/phase1-account-management/` est conservé comme historique, conformément à la convention nWave).
+- **Phase 2 — Transaction History**: pas démarrée (voir `SPEC.md` §Phase 2 — relevé de compte, filtre par date, détail des transactions). Prochain incrément candidat.
+- **Phase 3 — Interest & Advanced Features**: pas démarrée (voir `SPEC.md` §Phase 3).
+
 ## Development Paradigm
 
 This project follows the **object-oriented programming** paradigm.
@@ -39,3 +45,5 @@ This project uses **nightly-delta** mutation testing. CI runs PIT on files modif
 - **Excluded**: `adapter.*`, `BankApplication`
 - **Trigger**: `push: [main]` uniquement — pas sur PR
 - **Feedback delay**: ~12h (acceptable pour cadence de livraison quotidienne)
+- **Rationale du choix nightly-delta**: projet en phase de démarrage (< 50k LOC estimées pour Phase 1) — voir `docs/feature/phase1-account-management/feature-delta.md` §DEVOPS/Mutation Testing Strategy
+- **À revisiter** : si la base de code dépasse ~50k LOC (probable après Phase 2 — Transaction History), réévaluer cette stratégie (ex. passage à un seuil de kill-rate bloquant en CI plutôt qu'informatif)
