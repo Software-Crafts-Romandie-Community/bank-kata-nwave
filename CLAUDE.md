@@ -3,7 +3,7 @@
 ## Project Status
 
 - **Phase 1 — Account Management (Web UI)**: ✅ Terminée, finalisée via `/nw-finalize` → résumé dans `docs/evolution/2026-06-16-phase1-account-management.md` (le workspace `docs/feature/phase1-account-management/` est conservé comme historique, conformément à la convention nWave).
-- **Phase 2 — Transaction History**: pas démarrée (voir `SPEC.md` §Phase 2 — relevé de compte, filtre par date, détail des transactions). Prochain incrément candidat.
+- **Phase 2 — Transaction History**: DISCUSS+DESIGN+DISTILL terminées (voir `SPEC.md` §Phase 2). DISTILL : walking skeleton RED pour la bonne raison, 16 scénarios `@skip` prêts, Final Wave Review Gate CLEAR (2026-06-16) → `docs/feature/phase2-transaction-history/feature-delta.md`. Prochaine étape : DELIVER (`/nw-deliver` ou `@nw-software-crafter`).
 - **Phase 3 — Interest & Advanced Features**: pas démarrée (voir `SPEC.md` §Phase 3).
 
 ## Development Paradigm

@@ -28,10 +28,11 @@ jobs:
         run: mvn -B compile
 
       - name: Unit Tests
-        run: mvn -B test -Dtest='!AccountManagementAcceptanceTest' -DfailIfNoTests=false
+        run: mvn -B test -Dtest='!AccountManagementAcceptanceTest,!TransactionHistoryAcceptanceTest' -DfailIfNoTests=false
 
       - name: Acceptance Tests (Cucumber)
-        run: mvn -B test -Dtest="AccountManagementAcceptanceTest"
+        # Liste explicite des runners Cucumber — mise a jour a chaque nouvelle feature
+        run: mvn -B test -Dtest="AccountManagementAcceptanceTest,TransactionHistoryAcceptanceTest"
 
       - name: ArchUnit — Hexagonal architecture enforcement
         # Inclus dans verify — séparé ici pour visibilité du gate

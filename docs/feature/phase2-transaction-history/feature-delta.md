@@ -2,9 +2,10 @@
 # Feature Delta : phase2-transaction-history
 
 **Projet** : Bank Application — Web Banking
-**Wave** : DISCUSS
+**Wave** : DISTILL
 **Date** : 2026-06-16
-**Statut** : Pret pour DESIGN wave — peer review approuvee (1 iteration, 2 issues HIGH remediees)
+**Statut** : DISTILL termine — Final Wave Review Gate CLEAR (2 approved, 2 conditionally_approved,
+0 blocker, 1 high resolu en session). Pret pour handoff DELIVER
 
 ---
 
@@ -561,3 +562,249 @@ invalidation retroactive.
 - [x] Aucune nouvelle dependance OSS introduite (DTO custom, pas Spring Data, pas de lib JS)
 - [x] Aucun fichier Phase 1 (`Account`, `Transaction`, `AccountUseCase`, `AccountService`,
       `AccountRepository`, `AccountController`) modifie
+
+---
+
+## Wave: DISTILL / [REF] Wave-Decision Reconciliation
+
+**Resultat : PASS — 0 contradiction.** Les 3 fichiers `wave-decisions.md` disponibles
+(DISCUSS — embarque dans ce fichier ; DESIGN — `design/wave-decisions.md`) ont ete relus.
+L'amendement DESIGN (pagination/tri, supersede D8) a deja ete reconcilie avec DISCUSS dans la
+meme session via `design/upstream-changes.md` (3 slices amendees en place, pas de contradiction
+residuelle). Aucun fichier `devops/wave-decisions.md` n'existe pour cette feature — degradation
+gracieuse appliquee (voir section Pre-requisites ci-dessous, meme traitement que Phase 1).
+
+## Wave: DISTILL / [REF] Upstream Findings (Document Update)
+
+2 findings documentes dans `docs/feature/phase2-transaction-history/distill/upstream-issues.md`,
+0 bloquant :
+
+1. **Backdating des transactions** — le domaine (`Account.deposit()`/`withdraw()`, inchange)
+   horodate toujours avec `Instant.now()`. Resolu par une fixture de test utilisant la reflexion
+   pour reecrire l'horodatage de la derniere transaction ajoutee (zero modification de
+   `Account.java`). Voir `StatementSteps.java` javadoc + upstream-issues.md Finding 1.
+2. **2 scenarios frontend-only** — "from > to rejete cote client" (slice-06) et l'integralite de
+   slice-07 (detail, sans driving port backend) sont exclus du perimetre Cucumber et documentes
+   pour couverture Vitest en DELIVER (meme partage de responsabilite que Phase 1, ou les tests
+   frontend `App.test.tsx`/`OperationForm.test.tsx` ont ete ecrits en DELIVER, pas en DISTILL).
+
+## Wave: DISTILL / [REF] Scenario List
+
+| # | Feature file | Scenario title | Tags | Active? |
+|---|---|---|---|---|
+| 1 | walking-skeleton.feature | Customer views the full transaction statement sorted from most recent to oldest | `@walking_skeleton @real-io @driving_port @US-WS` | YES |
+| 2 | statement.feature | The full statement is returned as a single coherent paginated object | `@driving_port @US-WS @skip` | no |
+| 3 | statement.feature | The statement is empty when no transaction exists | `@driving_port @US-WS @skip` | no |
+| 4 | statement.feature | The amount and type shown match exactly the domain transaction | `@driving_port @US-WS @skip` | no |
+| 5 | statement.feature | The full statement defaults to a page size of 20 | `@driving_port @US-WS @skip` | no |
+| 6 | statement.feature | Customer navigates to the next page of the statement | `@driving_port @US-WS @skip` | no |
+| 7 | statement.feature | Customer selects an allowed page size | `@driving_port @US-WS @skip` | no |
+| 8 | statement.feature | An unsupported page size choice is rejected | `@driving_port @US-WS @skip @error` | no |
+| 9 | statement.feature | A page beyond the last page returns a coherent empty result | `@driving_port @US-WS @skip` | no |
+| 10 | date-range-filter.feature | The date filter restricts the statement to the requested period | `@driving_port @US-S1 @skip` | no |
+| 11 | date-range-filter.feature | A filter with no results shows an explicit empty state | `@driving_port @US-S1 @skip` | no |
+| 12 | date-range-filter.feature | The date range bounds are inclusive | `@driving_port @US-S1 @skip` | no |
+| 13 | date-range-filter.feature | A filter with an end date before the start date is rejected | `@driving_port @US-S1 @skip @error` | no |
+| 14 | date-range-filter.feature | The date filter total matches the filtered subset, not the full account | `@driving_port @US-S1 @skip` | no |
+| 15 | date-range-filter.feature | Ascending amount sort applies to a date-filtered statement | `@driving_port @US-S1 @skip` | no |
+| 16 | date-range-filter.feature | Descending amount sort applies to a date-filtered statement | `@driving_port @US-S1 @skip` | no |
+| 17 | date-range-filter.feature | An invalid date range is rejected even when pagination and sort parameters are present | `@driving_port @US-S1 @skip @error` | no |
+
+**Error path ratio** (tag `@error` strict) : 3/17 = 17.6%. **Error-or-edge ratio** (incluant les
+etats vides, bornes inclusives et page hors limites — scenarios 3, 9, 11, 12) : 9/17 = 52.9% —
+au-dessus du seuil 40% cible. Coherent avec le ratio strict plus bas que Phase 1 (50%) car
+plusieurs AC de pagination sont des comportements par defaut/positifs (D11-D13), pas des refus.
+
+**Hors perimetre Cucumber (frontend-only, voir upstream-issues.md Finding 2)** : 1 scenario
+slice-06 ("from > to rejete cote client, aucune requete envoyee") + 5 scenarios slice-07
+(detail transaction) — couverture Vitest en DELIVER, pas comptes dans le ratio ci-dessus.
+
+**Tier A only** — feature journey-rich (filtre + tri + pagination combinables) mais sans entree
+libre/texte (dates ISO contraintes, montants numeriques) — pas de richesse d'espace d'entree
+justifiant Tier B PBT (Mandate 10). Coherent avec le choix Phase 1.
+
+---
+
+## Wave: DISTILL / [REF] WS Strategy
+
+| Dimension | Decision |
+|---|---|
+| Strategy | Architecture of Reference (inchangee depuis Phase 1) : MockMvc comme driving adapter HTTP ; `InMemoryAccountRepository` reutilisee en lecture seule comme driven bean reel |
+| Walking Skeleton | Scenario 1 — "Customer views the full transaction statement sorted from most recent to oldest" — ferme la boucle : test -> MockMvc -> `StatementController` -> `StatementUseCase` -> `AccountRepository.load()` -> assertion |
+| Litmus test | Un non-technicien confirme : "Oui, c'est ce dont j'ai besoin pour retrouver mes operations passees" |
+| Tagging | `@walking_skeleton @real-io @driving_port` |
+| Infrastructure | Meme `CucumberSpringConfiguration` que Phase 1 (`@SpringBootTest(webEnvironment = MOCK)`) — aucun nouveau contexte Spring, glue partage entre `AccountManagementSteps` et `StatementSteps` |
+
+---
+
+## Wave: DISTILL / [REF] Adapter Coverage
+
+| Adapter | Driven port | @real-io scenario | Coverage |
+|---|---|---|---|
+| `InMemoryAccountRepository` | `AccountRepository` (reutilise, lecture seule) | YES — Walking Skeleton (Scenario 1) | Meme bean Spring reel que Phase 1, aucun nouveau driven adapter introduit |
+
+Aucun nouveau driven adapter en Phase 2 (D3, brief.md). Coverage : complete (heritee de Phase 1).
+
+---
+
+## Wave: DISTILL / [REF] Scaffolds
+
+Tous les fichiers scaffold portent le marqueur `// SCAFFOLD: true`. Les methodes a comportement
+(non-DTO) levent `AssertionError("Not yet implemented -- RED scaffold")`. Les DTO purs
+(`TransactionResponse`, `PageResponse`) n'ont aucun comportement a RED-gater (pure-value, meme
+traitement que `BalanceResponse` en Phase 1).
+
+| File | Type | Layer | RED behaviour |
+|---|---|---|---|
+| `src/main/java/com/softcrafts/bankkata/application/port/in/StatementUseCase.java` | Primary port (interface) | application/port/in | n/a (interface, signature illustrative — voir javadoc) |
+| `src/main/java/com/softcrafts/bankkata/application/StatementService.java` | Application service | application | `AssertionError` sur `getStatement()` |
+| `src/main/java/com/softcrafts/bankkata/application/InvalidDateRangeException.java` | Application exception | application | n/a (exception pure donnee, ecrite complete — pas de comportement a faker) |
+| `src/main/java/com/softcrafts/bankkata/adapter/in/web/StatementController.java` | HTTP driving adapter | adapter/in/web | `AssertionError` sur `getStatement()` |
+| `src/main/java/com/softcrafts/bankkata/adapter/in/web/TransactionResponse.java` | DTO sortant (record) | adapter/in/web | n/a (pure-value, ecrit complet) |
+| `src/main/java/com/softcrafts/bankkata/adapter/in/web/PageResponse.java` | DTO sortant generique (record) | adapter/in/web | n/a (pure-value, ecrit complet) |
+
+`BankApplication.java` edite (pas un scaffold) pour declarer le bean `statementUseCase` — le
+constructeur `new StatementService(accountRepository)` ne leve jamais d'exception (gate Walking
+Skeleton : demarrage du contexte Spring, separe du RED au niveau methode).
+
+Detecter les scaffolds : `grep -r "SCAFFOLD: true" src/main/`
+
+---
+
+## Wave: DISTILL / [REF] Test Placement
+
+| Artefact | Path |
+|---|---|
+| Feature files | `src/test/resources/features/transaction-history/` |
+| Step definitions | `src/test/java/com/softcrafts/bankkata/acceptance/steps/StatementSteps.java` |
+| Cucumber Spring config | Reutilisee — `src/test/java/com/softcrafts/bankkata/acceptance/config/CucumberSpringConfiguration.java` (Phase 1, inchangee) |
+| Cucumber runner | `src/test/java/com/softcrafts/bankkata/acceptance/TransactionHistoryAcceptanceTest.java` |
+
+Precedent : meme layout Maven/Spring Boot + Cucumber-JVM que Phase 1. Glue package identique
+(`com.softcrafts.bankkata.acceptance`) — `AccountManagementSteps` et `StatementSteps` partagent
+le meme contexte Spring et le meme hook `@Before` (`AccountManagementSteps.resetAccountState()`,
+reutilise sans duplication).
+
+---
+
+## Wave: DISTILL / [REF] Driving Adapter Coverage
+
+| Driving adapter entry point | Protocol | Covered by |
+|---|---|---|
+| `GET /api/statement` (sans parametre) | MockMvc HTTP GET | Walking Skeleton (Scenario 1), Scenarios 2-4 |
+| `GET /api/statement?page&size` | MockMvc HTTP GET | Scenarios 5-9 (pagination) |
+| `GET /api/statement?from&to[&page&size&sortBy&sortDir]` | MockMvc HTTP GET | Scenarios 10-17 (filtre + tri) |
+
+Seul nouveau driving adapter de Phase 2 (`StatementController`) entierement couvert. Zero point
+d'entree non couvert. `AccountController` (Phase 1) reste couvert par `AccountManagementAcceptanceTest`,
+inchange.
+
+---
+
+## Wave: DISTILL / [REF] Pre-requisites
+
+| Pre-requisite | Source | Status |
+|---|---|---|
+| Stack Phase 1 inchangee (Spring Boot 3.x, Cucumber-JVM 7.18, JUnit Platform Suite) | brief.md "Stack technologique — Phase 2 (delta)" | Deja sur le classpath — aucun ajout |
+| `StatementUseCase` bean declare dans `BankApplication` | Scaffold (cette session) | Fait — voir edition `BankApplication.java` |
+| `StatementController` mappe `/api/statement` et demarre sans erreur de contexte | Scaffold (cette session) | Verifie — `mvn test` confirme RED (AssertionError), pas BROKEN |
+| Reflexion test-only pour backdating des transactions | Resolution DISTILL (upstream-issues.md Finding 1) | Implementee dans `StatementSteps.seedTransaction()` |
+| `InMemoryAccountRepository.reset()` (Phase 1) | Scaffold Phase 1, deja implemente | Reutilise sans modification |
+
+**Integration build frontend (action Forge — Final Wave Review Gate)** : `frontend-maven-plugin`
+(deja configure dans `pom.xml`, phases `install-node-and-npm` / `npm-install` / `npm-build` /
+`npm-test`) couvre automatiquement les nouveaux composants frontend de DELIVER (`StatementPage`,
+`DateRangeFilter`, `TransactionList`, `TransactionDetail`, `PageSizeSelector`,
+`PaginationControls`) — aucune configuration additionnelle requise, `mvn test`/`mvn package`
+declenche `npm test`/`npm run build` sans etape manuelle separee.
+
+DEVOPS environment : aucun wave DEVOPS dedie pour cette feature (meme situation que Phase 1) —
+degradation gracieuse appliquee, matrice par defaut : environnement `local` uniquement (voir
+`docs/feature/phase1-account-management/environments.yaml` pour la matrice projet partagee).
+
+---
+
+## Wave: DISTILL / [REF] Mandate-12 Step Reuse (informational)
+
+```
+TOTAL_OCCURRENCES (nouveaux .feature, transaction-history) = 72
+UNIQUE_DECORATORS (StatementSteps.java, 32 nouveaux + 2 reutilises d'AccountManagementSteps) = 34
+RATIO = 72 / 34 ~= 2.12x — plafond naturel pour cette feature (filtre x tri x pagination
+combinables, beaucoup d'assertions JSON distinctes : totalElements/totalPages/page/content)
+```
+
+Conformite mecanique (criteres 1-3, substance — pas le ratio) : pas de module `domain_types.py`
+equivalent introduit (paradigme OOP Java, pas de DSL parametre par enum type — les step
+decorators delegent directement a MockMvc, zero logique metier inline dans les corps de step,
+chaque step est <= 3 lignes). Critere 4 (ratio) documente ci-dessus, informational uniquement.
+
+---
+
+## Wave: DISTILL / [HANDOFF] DELIVER Wave Package
+
+### Artefacts produits par DISTILL wave
+
+| Artefact | Chemin | Statut |
+|---|---|---|
+| ATDD Infrastructure Policy | `docs/architecture/atdd-infrastructure-policy.md` | Mise a jour — ligne `StatementController` ajoutee (apply-if-exists) |
+| Upstream issues | `docs/feature/phase2-transaction-history/distill/upstream-issues.md` | Cree — 2 findings, 0 bloquant |
+| Red classification | `docs/feature/phase2-transaction-history/distill/red-classification.md` | Cree — RED confirme pour la bonne raison |
+| Feature file — walking skeleton | `src/test/resources/features/transaction-history/walking-skeleton.feature` | Cree — 1 scenario actif |
+| Feature file — releve pagine | `src/test/resources/features/transaction-history/statement.feature` | Cree — 8 scenarios @skip |
+| Feature file — filtre par date | `src/test/resources/features/transaction-history/date-range-filter.feature` | Cree — 8 scenarios @skip |
+| Step definitions | `src/test/java/com/softcrafts/bankkata/acceptance/steps/StatementSteps.java` | RED verifie |
+| Cucumber runner | `src/test/java/com/softcrafts/bankkata/acceptance/TransactionHistoryAcceptanceTest.java` | RED verifie |
+| Scaffolds production (6 fichiers) | `src/main/java/com/softcrafts/bankkata/` | Voir [REF] Scaffolds |
+| `BankApplication.java` | `src/main/java/com/softcrafts/bankkata/` | Edite — bean `statementUseCase` ajoute |
+
+### Contrat pour le software-crafter (DELIVER wave)
+
+- **Scenario actif** : Scenario 1 (walking-skeleton.feature) — deja actif, implementer
+  `StatementService.getStatement()` + `StatementController.getStatement()`, GREEN, commit
+- **Sequence DELIVER** : WS (deja ecrit) -> statement.feature (pagination, S2-S9) -> date-range-filter.feature (filtre+tri, S10-S17)
+- **Un scenario a la fois** : retirer `@skip`, RED -> GREEN -> COMMIT, repeter
+- **Pipeline obligatoire** (D11, ADR-005) : filtre par date -> tri -> pagination, dans cet ordre strict
+- **Page hors limites** (D12) : 200 OK, `content: []`, metadonnees coherentes — jamais 400
+- **Validation `size`** (D13) : whitelist stricte `{10, 20, 50}` -> 400 RFC 7807 si hors liste
+- **`from > to`** (D5) : `InvalidDateRangeException` dediee -> 400 RFC 7807, handler local a `StatementController`
+- **Mandate 12** : `StatementService` ne doit JAMAIS appeler `AccountRepository.save()` — test
+  recommande au crafter : mock `AccountRepository`, `verify(never()).save(any())`
+- **Signature `StatementUseCase`** : illustrative seulement (DESIGN a deliberement laisse le HOW
+  au crafter) — peut etre raffinee librement en DELIVER tant que le contrat reste read-only
+- **Frontend (DELIVER, hors Cucumber)** : `StatementPage`, `DateRangeFilter`, `TransactionList`,
+  `TransactionDetail`, `PageSizeSelector`, `PaginationControls` + tests Vitest pour les 6
+  scenarios frontend-only identifies dans upstream-issues.md Finding 2
+- **Reset** : `InMemoryAccountRepository.reset()` (Phase 1, reutilise) — deja appele par le hook
+  `@Before` partage d'`AccountManagementSteps`, aucune duplication necessaire dans `StatementSteps`
+
+### Validation effectuee
+
+- `mvn test` (TransactionHistoryAcceptanceTest + ArchitectureTest + AccountManagementAcceptanceTest) :
+  RED confirme pour la bonne raison sur le scenario WS, 0 regression Phase 1 (16/16 PASS),
+  ArchUnit 3/3 PASS (frontieres hexagonales respectees par les nouveaux composants)
+- Reconciliation wave-decisions : 0 contradiction
+- 2 findings upstream documentes et resolus dans le perimetre DISTILL (pas de blocage utilisateur requis)
+
+---
+
+## Final Wave Review Gate (4 reviewers, 2026-06-16)
+
+| Reviewer | Wave couvert | Verdict | Blockers | High | Low |
+|---|---|---|---|---|---|
+| `nw-product-owner-reviewer` (Eclipse) | DISCUSS | **approved** | 0 | 0 | 1 (informational, deja resolu en DESIGN) |
+| `nw-solution-architect-reviewer` (Atlas) | DESIGN | **approved** | 0 | 0 | 0 |
+| `nw-platform-architect-reviewer` (Forge) | DEVOPS | **conditionally_approved** | 0 | 1 | 2 |
+| `nw-acceptance-designer-reviewer` (Sentinel) | DISTILL | **conditionally_approved** | 0 | 0 | 4 (informational) |
+
+### Actions issues du gate
+
+| # | Reviewer | Severite | Finding | Action |
+|---|---|---|---|---|
+| 1 | Forge | high | `ci.yml` ne lancait que `AccountManagementAcceptanceTest`, jamais le nouveau runner | **APPLIQUEE immediatement** — `ci.yml` etape "Unit Tests" exclut desormais les 2 runners Cucumber (`!AccountManagementAcceptanceTest,!TransactionHistoryAcceptanceTest`), etape "Acceptance Tests" liste les 2 explicitement. Verifie localement (`mvn -o test`) : Unit Tests = ArchitectureTest seul (3/3 PASS) ; Acceptance Tests = les 2 suites (16/16 + 17 dont 1 RED attendu) |
+| 2 | Forge | medium | Pas de gate CI defensif validant la presence du scenario `@walking_skeleton` | Differee — action DELIVER scope, non bloquante (le scenario WS est deja verifie present et RED dans `red-classification.md`) |
+| 3 | Forge | medium | Integration build frontend non documentee dans Pre-requisites | **APPLIQUEE immediatement** — note ajoutee section [REF] Pre-requisites (frontend-maven-plugin deja configure, aucune action additionnelle) |
+| 4 | Sentinel | low x4 | Signature `StatementUseCase` (List vs PageResponse), marqueurs RED defensifs, ratio step-reuse, tracabilite scenarios frontend-only | Informational — deja couvertes par le Contrat DELIVER ci-dessus (signature illustrative explicitement signalee, frontend Vitest scope documente) |
+
+**Statut gate : CLEAR.** 0 blocker, 1 high resolu dans cette session, le reste documente comme
+action items DELIVER (conforme a la regle "APPROVED ou CONDITIONALLY_APPROVED avec action items
+documentes" du gate). **Handoff DELIVER autorise.**
