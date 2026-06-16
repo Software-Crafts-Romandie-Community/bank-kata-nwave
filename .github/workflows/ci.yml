@@ -28,14 +28,14 @@ jobs:
         run: mvn -B compile
 
       - name: Unit Tests
-        run: mvn -B test -Dgroups="unit" -DfailIfNoTests=false -Dexcludes="**/acceptance/*Test.java"
+        run: mvn -B test -Dtest='!AccountManagementAcceptanceTest' -DfailIfNoTests=false
 
       - name: Acceptance Tests (Cucumber)
-        run: mvn -B test -Dincludes="**/acceptance/*Test.java" -DfailIfNoTests=false
+        run: mvn -B test -Dtest="AccountManagementAcceptanceTest"
 
       - name: ArchUnit — Hexagonal architecture enforcement
         # Inclus dans verify — séparé ici pour visibilité du gate
-        run: mvn -B test -Dtest="ArchitectureTest" -DfailIfNoTests=false
+        run: mvn -B test -Dtest="ArchitectureTest"
 
       - name: Upload test results
         if: always()
