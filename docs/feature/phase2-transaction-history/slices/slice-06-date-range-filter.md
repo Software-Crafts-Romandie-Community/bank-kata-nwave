@@ -97,16 +97,52 @@ Then la reponse HTTP a le statut 400 Bad Request
 And le corps suit le format RFC 7807 Problem Details
 ```
 
+### Scenario : Le filtre par date retourne un total coherent avec le sous-ensemble filtre
+*(Ajoute — amendement pagination/tri backend, 2026-06-16, voir `design/upstream-changes.md`)*
+```gherkin
+Given Marie a 10 transactions au total, dont 3 entre le 2026-06-01 et le 2026-06-12
+When Marie filtre du 2026-06-01 au 2026-06-12
+Then "totalElements" vaut 3 (pas 10)
+And "totalPages" vaut 1 (taille de page par defaut 20)
+```
+
+### Scenario : Le tri par montant croissant s'applique a un releve filtre par date
+*(Ajoute — amendement pagination/tri backend)*
+```gherkin
+Given Marie a des transactions de 50 EUR, 200 EUR et 10 EUR entre le 2026-06-01 et le 2026-06-12
+When Marie filtre cette periode et trie par montant croissant
+Then "content" affiche les transactions dans l'ordre 10 EUR, 50 EUR, 200 EUR
+```
+
+### Scenario : Le tri par montant decroissant s'applique a un releve filtre par date
+*(Ajoute — amendement pagination/tri backend)*
+```gherkin
+Given Marie a des transactions de 50 EUR, 200 EUR et 10 EUR entre le 2026-06-01 et le 2026-06-12
+When Marie filtre cette periode et trie par montant decroissant
+Then "content" affiche les transactions dans l'ordre 200 EUR, 50 EUR, 10 EUR
+```
+
+### Scenario : from > to est rejete meme avec des parametres de pagination/tri presents
+*(Ajoute — amendement pagination/tri backend)*
+```gherkin
+Given le serveur Spring Boot est demarre
+When un client envoie GET /api/statement?from=2026-06-15&to=2026-06-01&page=0&size=10&sortBy=amount
+Then la reponse HTTP a le statut 400 Bad Request
+And le corps suit le format RFC 7807 Problem Details
+```
+
 ---
 
 ## Acceptance Criteria
 
-- [ ] GET /api/statement?from=X&to=Y ne retourne que les transactions dans l'intervalle [X, Y] inclus
-- [ ] Une plage sans transaction renvoie un tableau vide (200 OK), pas une erreur
-- [ ] from > to renvoie 400 Bad Request au format RFC 7807 Problem Details
+- [ ] GET /api/statement?from=X&to=Y ne retourne, dans la page demandee, que les transactions dans l'intervalle [X, Y] inclus
+- [ ] Une plage sans transaction renvoie `content: []` (200 OK) avec `totalElements: 0`/`totalPages: 0`, pas une erreur
+- [ ] from > to renvoie 400 Bad Request au format RFC 7807 Problem Details, independamment des parametres de pagination/tri presents
 - [ ] Les champs de saisie "du"/"au" sont visibles sur la page d'historique
 - [ ] Le filtre cote frontend empeche l'envoi d'une requete si la validation locale echoue (UX)
-- [ ] Sans filtre applique, le comportement de slice-05 (releve complet) reste inchange
+- [ ] Sans filtre applique, le comportement de slice-05 (releve complet pagine) reste inchange
+- [ ] *(Ajoute — amendement)* `totalElements`/`totalPages` sont calcules apres filtrage par date, avant pagination — le total reflete le sous-ensemble filtre, pas le total du compte
+- [ ] *(Ajoute — amendement)* Le tri (`sortBy`/`sortDir`) s'applique en combinaison avec un filtre de date actif, sur le sous-ensemble filtre
 
 ---
 
@@ -132,3 +168,11 @@ And le corps suit le format RFC 7807 Problem Details
   `from`/`to` (dates sans heure) doit etre documentee explicitement (ex. `from` = debut de
   journee UTC, `to` = fin de journee UTC) — **Assumption** documentee dans wave-decisions
 - **Dependances** : depend de slice-05 (meme endpoint, etendu)
+
+### Amendement — Pagination et tri backend (2026-06-16, post peer-review DESIGN)
+
+Le filtre par date s'applique desormais **avant** le tri et la pagination (ordre strict :
+filtre -> tri -> pagination, voir ADR-005). `totalElements`/`totalPages` refletent le
+sous-ensemble filtre, jamais le total brut du compte. Voir
+`docs/product/architecture/adr-005-backend-pagination-sorting.md` et
+`docs/feature/phase2-transaction-history/design/upstream-changes.md`.

@@ -85,6 +85,17 @@ When Marie clique sur une ligne du releve
 Then la vue detail s'affiche sans nouvelle requete HTTP vers /api/statement
 ```
 
+### Scenario : Le retour au releve preserve le filtre, la page et le tri actifs
+*(Ajoute — amendement pagination/tri backend, 2026-06-16, voir `design/upstream-changes.md`)*
+```gherkin
+Given Thomas a filtre le releve du 2026-06-01 au 2026-06-12, trie par montant croissant,
+  et consulte la page 1
+When Thomas clique sur une ligne puis sur "Retour au releve"
+Then il revient a la page 1 du releve filtre du 2026-06-01 au 2026-06-12, trie par montant croissant
+And aucun nouvel appel a GET /api/statement n'est necessaire pour cet affichage
+  (les donnees de la page sont deja en memoire cote client)
+```
+
 ---
 
 ## Acceptance Criteria
@@ -92,7 +103,7 @@ Then la vue detail s'affiche sans nouvelle requete HTTP vers /api/statement
 - [ ] Chaque ligne du releve (complet ou filtre) est cliquable
 - [ ] La vue detail affiche type, montant et date/heure complete (incluant l'heure, pas seulement la date)
 - [ ] Le montant affiche est sans ambiguite sur le type d'operation (depot vs retrait)
-- [ ] Le retour au releve preserve l'etat du filtre actif (si un filtre etait applique)
+- [ ] Le retour au releve preserve l'etat complet de consultation actif (filtre de date, page courante, champ et direction de tri), pas seulement le filtre *(amende — voir upstream-changes.md)*
 
 ---
 
@@ -116,3 +127,11 @@ Then la vue detail s'affiche sans nouvelle requete HTTP vers /api/statement
   — fuseau horaire d'affichage a clarifier en DESIGN (meme `Instant` UTC que le domaine)
 - **Dependances** : depend de slice-05 (releve) ; compatible avec slice-06 (filtre) sans
   modification additionnelle cote serveur
+
+### Amendement — Pagination et tri backend (2026-06-16, post peer-review DESIGN)
+
+L'etat local frontend a preserver au retour depuis le detail s'elargit : filtre de date **+
+page courante + champ de tri + direction de tri**, pas seulement le filtre de date comme
+documente initialement. Aucun changement de mecanisme (toujours frontend-only, aucun nouvel
+appel serveur) — uniquement un elargissement du perimetre de l'etat preserve. Voir
+`docs/feature/phase2-transaction-history/design/upstream-changes.md`.

@@ -344,3 +344,220 @@ Elevator Pitch Before/After/Decision-enabled avec endpoint reel.
   au feature-delta.md
 - DoR 9 items : PASSED (voir section ci-dessus)
 - Statut final : **PRET POUR HANDOFF DESIGN**
+
+---
+
+## Wave: DESIGN / [REF] Mode et contexte
+
+**Mode** : Propose — options presentees ou un vrai choix existait (voir Decisions Table),
+decisions DISCUSS deja verrouillees confirmees sans re-discussion (extension additive,
+filtrage applicatif, format Number, pas de pagination).
+
+**Architecte** : Morgan (solution-architect nWave), premier architecte sur ce brief (pas de
+section System Architecture/Domain Model prealable de Titan/Hera a integrer).
+
+**Outcome Collision Check** : SKIP — `docs/product/outcomes/registry.yaml` absent. Ce projet
+est un kata pedagogique, pas un repo nWave avec registry outcomes complet. Verifie avant de
+lancer la CLI — fichier inexistant, check non applicable.
+
+---
+
+## Wave: DESIGN / [REF] DDD List
+
+Pas de nouveau bounded context. Extension du contexte existant **Account/Transaction**.
+
+| Concept | Statut | Notes |
+|---------|--------|-------|
+| Account (agregat) | Inchange | Racine d'agregat, seule source de Transaction |
+| Transaction (value object) | Inchange | Record domaine, aucun champ ajoute |
+| Statement (concept) | Nouveau — **pas un agregat ni une entite domaine** | Vue projetee (read model applicatif) construite a la volee par `StatementService` a partir de `Account.getTransactions()`. N'existe dans aucune persistance — recalculee a chaque requete |
+| DateRange (concept) | Nouveau — **value object applicatif, pas domaine** | Paire `from`/`to` (LocalDate ou equivalent), validee dans `StatementService`/`StatementController`, jamais transmise au domaine |
+
+---
+
+## Wave: DESIGN / [REF] Component Decomposition
+
+Voir `docs/product/architecture/brief.md` section `## Application Architecture — Phase 2`,
+tableau "Component decomposition (nouveaux composants)". Resume :
+
+`StatementUseCase` (port) -> `StatementService` (application) -> `AccountRepository` (port
+reutilise) -> `Account.getTransactions()` (domaine inchange) -> `StatementController` (adapter
+HTTP, mapping vers `TransactionResponse`/`StatementResponse`) -> Frontend (`StatementPage`,
+`DateRangeFilter`, `TransactionList`, `TransactionDetail`).
+
+---
+
+## Wave: DESIGN / [REF] Driving Ports
+
+**`StatementUseCase`** (nouveau, `application/port/in/`) — read-only, voir ADR-004 pour la
+justification de la separation d'avec `AccountUseCase`. Aucune methode de mutation exposee.
+
+---
+
+## Wave: DESIGN / [REF] Driven Ports + Adapters
+
+Aucun nouveau port driven. `AccountRepository` (existant) reutilise en lecture seule par
+`StatementService` — voir ADR-004 Alternative B (rejetee) pour la justification de ne pas
+etendre `AccountUseCase`, et brief.md D3 pour la justification de ne pas creer de second port
+driven.
+
+---
+
+## Wave: DESIGN / [REF] Technology Choices
+
+Aucun ajout. Stack Phase 1 reutilisee a l'identique (Java 21, Spring Boot 3.x, JUnit 5,
+AssertJ, Mockito, ArchUnit, React 18 + TypeScript + Vite). Voir brief.md "Stack technologique —
+Phase 2 (delta)". Decision explicite de ne PAS ajouter react-router (D7) ni bibliotheque de
+pagination (D8).
+
+---
+
+## Wave: DESIGN / [REF] Decisions Table
+
+Voir `docs/product/architecture/brief.md` section "Décisions de conception (table — [REF]
+Tier-1)" pour le detail complet (D1 a D9). Resume des decisions ou un choix reel existait :
+
+| # | Decision | Mode | Resultat |
+|---|----------|------|----------|
+| D2 | Nouveau port `StatementUseCase` vs extension `AccountUseCase` | Propose (options dans ADR-004) | Nouveau port separe, read-only |
+| D3 | Nouveau port driven vs reutilisation `AccountRepository` | Propose | Reutilisation, pas de nouveau port |
+| D5 | Type d'exception pour `from > to` | Propose | `InvalidDateRangeException` dediee |
+| D7 | Routage frontend | Propose (justifie par simplicite) | Pas de router, etat local |
+
+Decisions D1, D4, D6, D8, D9 : verrouillees ou confirmees sans alternative reelle (contraintes
+DISCUSS directes ou correction factuelle du code existant).
+
+---
+
+## Wave: DESIGN / [REF] Reuse Analysis
+
+Voir `docs/product/architecture/brief.md` section "Reuse Analysis (Phase 2) — HARD GATE" —
+tableau complet couvrant tous les composants existants (Account, Transaction, AccountUseCase,
+AccountRepository, AccountController, AccountService, BalanceResponse, App.tsx, bankApi.ts,
+types/index.ts, BalanceDisplay, OperationForm) et tous les nouveaux composants avec contract
+shape pour chaque composant a recoupement.
+
+---
+
+## Wave: DESIGN / [REF] Open Questions
+
+| # | Question | Impacte |
+|---|----------|---------|
+| Q6 | Volume de transactions avant que l'absence de pagination (D8) devienne un probleme UX | Hors perimetre Phase 2 — a surveiller Phase 3 |
+| Q7 | Fuseau horaire utilisateur si l'application devient multi-utilisateur (D6/A2) | Hors perimetre Phase 2 (pas d'auth) — a revisiter Phase 3 |
+
+---
+
+## Changed Assumptions
+
+| # | Assumption DISCUSS | Statut DESIGN | Detail |
+|---|---------------------|----------------|--------|
+| A1 | Format JSON montants en Number "alors que Phase 1 utilisait String" | **CORRIGEE — factuellement fausse** | Lecture du code source confirme que `BalanceResponse` (Phase 1) serialise deja `BigDecimal` en Number natif, sans config Jackson explicite. Phase 1 n'a jamais utilise String. `TransactionResponse.amount` suit donc la convention Number deja en place, pas un changement de convention. Aucun impact sur les stories (le contrat API attendu — Number — est inchange), simple correction de la justification documentee dans le DISCUSS |
+| A2 | Bornes from/to = journee complete UTC (00:00:00.000Z / 23:59:59.999Z) | **CONFIRMEE sans changement** | Voir brief.md D6. Coherent avec `Transaction.timestamp` en `Instant` UTC et l'absence de notion de fuseau utilisateur dans le perimetre (pas d'auth, mono-utilisateur). Aucun impact sur les stories |
+| A3 | Lien "Voir l'historique" ajoute a la page de compte Phase 1 existante | **CONFIRMEE sans changement** | Voir brief.md "Frontend — composants et état (sans router)", D7. `App.tsx` etendu avec un etat de navigation local, pas de nouvelle page/route independante. Aucun impact sur les stories |
+
+Aucune assumption n'impacte le contenu des stories elles-memes (slice-05/06/07 restent valides
+tel que redigees) — `docs/feature/phase2-transaction-history/design/upstream-changes.md` non
+necessaire pour ce perimetre.
+
+> **Note (amendement 2026-06-16)** : la phrase ci-dessus ("upstream-changes.md non necessaire")
+> etait vraie au moment de l'iteration DESIGN 1 (peer review approuvee, 0 issue). Elle est
+> **supersedee** par l'amendement ci-dessous : une nouvelle exigence produit post-review a rendu
+> `upstream-changes.md` necessaire. Voir section suivante.
+
+---
+
+## Wave: DESIGN / [REF] Amendement — Pagination et tri backend
+
+**Date** : 2026-06-16 (post peer-review iteration 1, approuvee 0 issue)
+**Declencheur** : exigence produit explicite du product owner (Sylvain Chabert), exprimee apres
+l'approbation de l'iteration DESIGN 1 — "affichage paginé (avec tri), avec une pagination
+provenant du backend (même si le stockage est in-memory)".
+**Mode** : Propose — le besoin lui-meme est verrouille (pas de re-discussion), les options
+presentees portent sur le COMMENT (style API, comportement page hors limites, validation `size`).
+
+### Contexte
+
+L'iteration DESIGN 1 avait verrouille D8 ("aucune pagination") en se basant sur un volume de
+transactions faible (mono-utilisateur, in-memory, dizaines a centaines de transactions par
+session de demo). Cette decision etait correcte pour le perimetre alors connu — **ce n'est pas
+une erreur corrigee, c'est un changement de perimetre pilote par le produit**. Voir
+`docs/product/architecture/adr-005-backend-pagination-sorting.md` pour l'analyse complete.
+
+### Decisions deja tranchees par le product owner (non re-debattues)
+
+- Champs triables : `timestamp` (date) et `amount` (montant) — tri par defaut date decroissante
+- Style API : DTO custom leger (`PageResponse<T>`), pas Spring Data `Pageable`/`Page`
+- Taille de page : defaut 20, configurable parmi `{10, 20, 50}` cote UI
+
+### Nouvelles decisions (D10-D13)
+
+| # | Decision | Mode | Resultat |
+|---|----------|------|----------|
+| D10 | Pagination backend — style API | Verrouille produit (options de style evaluees) | DTO custom `PageResponse<T>` — pas Spring Data `Pageable`/`Page` (dependance `spring-data-commons` non justifiee, absente du projet) |
+| D11 | Ordre des operations dans `StatementService` | Propose -> Retenu | Filtre (date) -> Tri -> Pagination, ordre strict — garantit `totalElements`/`totalPages` coherents avec le filtre actif |
+| D12 | Comportement page hors limites (ex. `page=99` sur 2 pages) | Propose -> Retenu | 200 OK, `content: []`, metadonnees coherentes — pas de 400, coherent avec "jamais d'erreur pour absence de resultat" (slice-05/06) |
+| D13 | Validation de `size` | Propose -> Retenu | Whitelist stricte `{10, 20, 50}` -> 400 si hors liste — le PO a fixe une liste fermee, pas un plafond ouvert |
+
+Detail complet (alternatives evaluees, rationale) : voir
+`docs/product/architecture/adr-005-backend-pagination-sorting.md`.
+
+### Contrat API amende — `GET /api/statement`
+
+Nouveaux query params : `page` (defaut 0), `size` (defaut 20, `{10,20,50}`), `sortBy`
+(`date`|`amount`, defaut `date`), `sortDir` (`asc`|`desc`, defaut `desc`) — en plus de `from`/`to`
+(slice-06, inchanges). Nouvelle reponse : `PageResponse<TransactionResponse>` (`content`, `page`,
+`size`, `totalElements`, `totalPages`) remplace l'enveloppe `StatementResponse` (liste plate).
+
+Detail complet du contrat : voir `docs/product/architecture/brief.md`, section
+`### Pagination et tri — Amendement Phase 2`.
+
+### Impact sur les composants
+
+`StatementUseCase` (contrat elargi, toujours read-only), `StatementService` (pipeline etendu
+filtre->tri->pagination), `StatementController` (parsing/validation des 4 nouveaux parametres),
+nouveau DTO `PageResponse<T>`. Cote frontend : `PageSizeSelector` (nouveau), `PaginationControls`
+(nouveau, precedent/suivant + numero page), `TransactionList` etendu (en-tetes de colonnes
+cliquables pour le tri), `StatementPage` (etat local elargi : filtre + page + tri). Aucune
+nouvelle dependance npm. Detail complet : voir brief.md, tableau "Reuse Analysis — composants
+impactes par l'amendement".
+
+### Impact sur les stories DISCUSS (Document Update / Back-Propagation)
+
+Voir `docs/feature/phase2-transaction-history/design/upstream-changes.md` pour le detail complet
+(AC amendes, nouveaux scenarios Gherkin). Resume :
+
+- **slice-05** : 3 AC amendes (forme de reponse paginee), 4 AC ajoutes (pagination de base), 5
+  scenarios Gherkin ajoutes (page par defaut, page suivante, taille choisie, taille invalide,
+  page hors limites)
+- **slice-06** : 3 AC amendes (total coherent avec le filtre), 3 AC ajoutes (total post-filtre,
+  tri combine au filtre), 4 scenarios Gherkin ajoutes (total filtre, tri croissant/decroissant,
+  from>to avec params de pagination presents)
+- **slice-07** : 1 AC amende (etat preserve elargi a filtre+page+tri, pas seulement filtre), 1
+  scenario Gherkin ajoute
+
+Les 3 fichiers slice ont ete amendes directement dans cette session (autorisation explicite du
+product owner du projet pour cette extension de perimetre post-review).
+
+### D8 — Supersession explicite
+
+**D8 ("Aucune pagination", iteration DESIGN 1) est SUPERSEDEE par D10/ADR-005.** D8 reste
+documentee intacte dans le brief (on ne reecrit pas l'historique) et marquee SUPERSEDED dans la
+table des decisions de `brief.md`. Ce n'etait pas une erreur : c'etait la bonne decision pour le
+perimetre connu au moment ou elle a ete prise (mono-utilisateur, in-memory, volumes faibles). Le
+changement de contexte (exigence produit explicite post-review) justifie la supersession, pas une
+invalidation retroactive.
+
+### Quality Gates — auto-validation de l'amendement
+
+- [x] Nouvelle exigence tracee vers composants nommes (StatementService/Controller/UseCase + 2
+      nouveaux composants frontend)
+- [x] ADR cree avec 3 alternatives evaluees et rejetees/retenue (ADR-005)
+- [x] C4 Container — note explicite "inchange, voir diagramme iteration 1" (aucun nouveau
+      composant conteneur)
+- [x] Contrat API coherent de bout en bout (brief.md, ADR-005, slices amendees, frontend)
+- [x] Document Update / Back-Propagation effectue (`upstream-changes.md` + slices amendees)
+- [x] D8 marquee SUPERSEDED, pas effacee — tracabilite preservee
+- [x] Aucune nouvelle dependance OSS introduite (DTO custom, pas Spring Data, pas de lib JS)
+- [x] Aucun fichier Phase 1 (`Account`, `Transaction`, `AccountUseCase`, `AccountService`,
+      `AccountRepository`, `AccountController`) modifie
