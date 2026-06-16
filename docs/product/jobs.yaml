@@ -46,3 +46,40 @@ jobs:
       - slice-02-deposit-api
       - slice-03-withdrawal-api
       - slice-04-insufficient-funds-api
+
+  - id: job-002
+    label: bank-account-transaction-traceability
+    statement: >
+      When I need to verify that my past deposits and withdrawals were recorded correctly,
+      I want to see a chronological statement of my transactions and filter it by date range,
+      so I can trust the system's bookkeeping without contacting my branch.
+    dimensions:
+      functional:
+        - Afficher la liste chronologique des transactions (depots et retraits)
+        - Filtrer les transactions par plage de dates (de/a)
+        - Voir le detail d'une transaction (montant, type, date)
+      emotional:
+        - Se sentir rassuree — chaque operation passee est tracable et verifiable
+        - Faire confiance au systeme — aucune transaction n'est perdue ou modifiee
+        - Eviter l'anxiete de devoir contacter la banque pour retrouver une operation
+      social:
+        - Pouvoir justifier ses mouvements financiers sans intermediaire humain
+        - Garder un historique personnel consultable a tout moment depuis le navigateur
+    four_forces:
+      push: >
+        Aucune trace consultable des operations passees — Marie doit se souvenir
+        mentalement ou demander un releve papier en agence pour verifier une operation.
+      pull: >
+        Releve instantane et filtrable depuis le navigateur, disponible immediatement
+        apres chaque depot ou retrait, sans attendre un releve mensuel papier.
+      anxiety: >
+        Peur qu'une transaction ait disparu ou soit incorrecte sans moyen de verifier ;
+        doute sur la fiabilite du systeme si l'historique n'est pas consultable.
+      habit: >
+        Habitude du releve papier mensuel ou de l'appel au conseiller pour retrouver
+        une operation — le releve web doit etre au moins aussi complet et comprehensible.
+    opportunity_score: 7
+    stories:
+      - slice-05-ws-statement-api
+      - slice-06-date-range-filter
+      - slice-07-transaction-detail

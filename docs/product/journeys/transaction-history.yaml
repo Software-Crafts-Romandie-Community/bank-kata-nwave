@@ -1,0 +1,196 @@
+schema_version: 1
+created: 2026-06-16
+updated: 2026-06-16
+feature: phase2-transaction-history
+
+journey:
+  name: "Consultation de l'historique des transactions — Phase 2 Web"
+  goal: "Verifier que les depots et retraits passes sont correctement enregistres, filtrer par date, voir le detail d'une operation"
+  persona: "Marie — cliente bancaire, 35 ans, reutilisee depuis account-management.yaml"
+
+  emotional_arc:
+    start: "Doute — est-ce que mes operations passees sont vraiment enregistrees ?"
+    middle: "Recherche guidee — je filtre par date pour retrouver une operation precise"
+    end: "Reassurance et confiance — chaque operation est tracable, rien n'est perdu"
+
+steps:
+  - id: 1
+    name: "Ouvrir le releve depuis la page de compte"
+    action: "Cliquer sur 'Voir l'historique' depuis la page de gestion de compte"
+    web_mockup: |
+      +-----------------------------------------------+
+      | Bank — Gestion de compte          [localhost]  |
+      +-----------------------------------------------+
+      |   Solde actuel : 150,00 EUR                    |
+      |   [ Deposer ]  [ Retirer ]  [ Voir l'historique]|
+      +-----------------------------------------------+
+    shared_artifacts:
+      - name: balance
+        source: "Account domain object — deja trackee dans account-management.yaml"
+        displayed_as: "${balance} EUR"
+        consumers:
+          - "Page de gestion de compte (deja existant Phase 1)"
+    emotional_state:
+      entry: "Curiosite/Doute — Marie veut verifier ses operations passees"
+      exit: "Attente — Marie clique, s'attend a voir une liste"
+    integration_checkpoint: |
+      Le lien "Voir l'historique" est visible uniquement si Account expose au moins
+      une transaction (ou affiche un etat vide explicite si aucune transaction).
+    failure_modes:
+      - "Lien absent ou casse — Marie ne trouve pas comment consulter l'historique"
+    gherkin: |
+      Scenario: Le lien vers l'historique est accessible depuis la page de compte
+        Given Marie consulte la page de gestion de compte avec un solde de 150,00 EUR
+        When la page se charge completement
+        Then Marie voit un lien ou bouton "Voir l'historique"
+
+  - id: 2
+    name: "Consulter le releve complet (toutes transactions)"
+    action: "La page d'historique charge GET /api/statement au chargement"
+    web_mockup: |
+      +-----------------------------------------------+
+      |   Historique des transactions                 |
+      |   Filtrer : du [__/__/____] au [__/__/____]    |
+      |   [ Appliquer ]                                |
+      |   +-------------------------------------+      |
+      |   | Date       | Type      | Montant    |      |
+      |   +-------------------------------------+      |
+      |   | 2026-06-15 | DEPOT     | +150,00 EUR|      |
+      |   | 2026-06-10 | RETRAIT   | -50,00 EUR |      |
+      |   | 2026-06-01 | DEPOT     | +50,00 EUR |      |
+      |   +-------------------------------------+      |
+      |   3 transactions affichees                     |
+      +-----------------------------------------------+
+    shared_artifacts:
+      - name: transactions
+        source: "Account.getTransactions() — liste immuable en memoire"
+        displayed_as: "${transactions}"
+        consumers:
+          - "Tableau de l'historique (reponse GET /api/statement)"
+          - "Filtre par date (meme source, sous-ensemble filtre)"
+          - "Detail d'une transaction (step 4)"
+    emotional_state:
+      entry: "Attente — Marie espere voir toutes ses operations"
+      exit: "Reassurance partielle — la liste correspond a ce que Marie se souvient avoir fait"
+    integration_checkpoint: |
+      GET /api/statement repond 200 OK avec un tableau de transactions tries du plus
+      recent au plus ancien. Chaque entree correspond a une Transaction du domaine.
+    failure_modes:
+      - "Liste vide alors que des operations existent (bug de mapping domaine -> DTO)"
+      - "Ordre incoherent (transactions non triees chronologiquement)"
+      - "Montant ou type incorrect affiche (desynchronisation domaine/API)"
+    gherkin: |
+      Scenario: Le releve affiche toutes les transactions du plus recent au plus ancien
+        Given Marie a effectue un depot de 50,00 EUR le 2026-06-01, un retrait de 50,00 EUR
+          le 2026-06-10, puis un depot de 150,00 EUR le 2026-06-15
+        When Marie ouvre la page d'historique
+        Then elle voit 3 transactions triees du 2026-06-15 au 2026-06-01
+        And chaque ligne affiche la date, le type et le montant signe
+
+  - id: 3
+    name: "Filtrer par plage de dates"
+    action: "Saisir une date de debut et de fin, cliquer sur 'Appliquer'"
+    web_mockup: |
+      +-----------------------------------------------+
+      |   Historique des transactions                 |
+      |   Filtrer : du [01/06/2026] au [12/06/2026]    |
+      |   [ Appliquer ]                                |
+      |   +-------------------------------------+      |
+      |   | Date       | Type      | Montant    |      |
+      |   +-------------------------------------+      |
+      |   | 2026-06-10 | RETRAIT   | -50,00 EUR |      |
+      |   | 2026-06-01 | DEPOT     | +50,00 EUR |      |
+      |   +-------------------------------------+      |
+      |   2 transactions affichees (filtre actif)      |
+      +-----------------------------------------------+
+    shared_artifacts:
+      - name: dateRange
+        source: "Saisie utilisateur — query params ?from=...&to=... sur GET /api/statement"
+        displayed_as: "${dateRange}"
+        consumers:
+          - "Champs de saisie du filtre (etat affiche)"
+          - "Requete GET /api/statement?from=2026-06-01&to=2026-06-12"
+          - "Libelle 'transactions affichees (filtre actif)'"
+      - name: transactions
+        source: "Account.getTransactions() filtree par dateRange cote serveur"
+        displayed_as: "${transactions}"
+        consumers:
+          - "Tableau filtre (sous-ensemble de step 2)"
+    emotional_state:
+      entry: "Recherche guidee — Marie cible une periode precise"
+      exit: "Satisfaction — la liste filtree correspond exactement a la periode demandee"
+    integration_checkpoint: |
+      GET /api/statement?from=2026-06-01&to=2026-06-12 ne retourne que les transactions
+      dont la date est comprise dans l'intervalle (bornes inclusives).
+    failure_modes:
+      - "Date de fin avant date de debut — doit etre rejete avec message clair (400)"
+      - "Aucune transaction dans la plage — afficher un etat vide explicite, pas une erreur"
+      - "Bornes mal interpretees (exclusion d'une transaction du jour exact 'from' ou 'to')"
+    gherkin: |
+      Scenario: Le filtre par date restreint le releve a la periode demandee
+        Given Marie a des transactions le 2026-06-01, le 2026-06-10 et le 2026-06-15
+        When Marie filtre du 2026-06-01 au 2026-06-12
+        Then elle voit 2 transactions (2026-06-01 et 2026-06-10)
+        And la transaction du 2026-06-15 n'apparait pas
+
+      Scenario: Un filtre sans resultat affiche un etat vide explicite
+        Given Marie a uniquement des transactions en juin 2026
+        When Marie filtre du 2026-01-01 au 2026-01-31
+        Then elle voit le message "Aucune transaction sur cette periode"
+        And aucune erreur n'est affichee
+
+  - id: 4
+    name: "Consulter le detail d'une transaction"
+    action: "Cliquer sur une ligne du tableau pour voir le detail"
+    web_mockup: |
+      +-----------------------------------------------+
+      |   Detail de la transaction                    |
+      |   +-------------------------------------+      |
+      |   | Type     : DEPOT                    |      |
+      |   | Montant  : 150,00 EUR                |      |
+      |   | Date     : 15/06/2026 14:32           |      |
+      |   +-------------------------------------+      |
+      |   [ Retour au releve ]                         |
+      +-----------------------------------------------+
+    shared_artifacts:
+      - name: transactions
+        source: "Account.getTransactions() — meme source que step 2/3"
+        displayed_as: "${transactions[i]}"
+        consumers:
+          - "Vue detail (un seul element du tableau)"
+    emotional_state:
+      entry: "Curiosite ciblee — Marie veut confirmer les details exacts d'une operation"
+      exit: "Confiance totale — l'operation est confirmee dans ses moindres details"
+    integration_checkpoint: |
+      Le detail affiche correspond exactement a l'entree selectionnee dans le tableau
+      (memes valeurs type/montant/date, pas de re-fetch incoherent).
+    failure_modes:
+      - "Detail incoherent avec la ligne cliquee (mauvais index ou mauvais id)"
+      - "Horodatage affiche dans un fuseau horaire trompeur"
+    gherkin: |
+      Scenario: Le detail d'une transaction correspond exactement a la ligne selectionnee
+        Given Marie voit la transaction du 2026-06-15 de type DEPOT de 150,00 EUR dans le releve
+        When Marie clique sur cette ligne
+        Then la vue detail affiche "DEPOT", "150,00 EUR" et la date/heure exacte 2026-06-15
+
+integration_validation:
+  shared_artifact_consistency:
+    - artifact: transactions
+      must_match_across: [2, 3, 4]
+      failure_message: >
+        La liste de transactions affichee (complete, filtree, ou en detail) doit toujours
+        provenir de Account.getTransactions() — aucune transformation ne doit alterer
+        montant, type ou date par rapport au domaine.
+    - artifact: dateRange
+      must_match_across: [3]
+      failure_message: >
+        Les query params from/to envoyes a l'API doivent correspondre exactement
+        aux dates saisies par Marie dans le filtre (pas de decalage de fuseau horaire).
+
+changelog:
+  - date: "2026-06-16"
+    feature: "phase2-transaction-history"
+    change: >
+      Creation du parcours Phase 2 — consultation de l'historique des transactions,
+      filtre par date, detail d'une transaction. Reutilise la persona Marie de
+      account-management.yaml. Nouveau job-002 (traçabilite), distinct de job-001 (action).
