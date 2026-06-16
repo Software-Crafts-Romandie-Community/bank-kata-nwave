@@ -65,7 +65,7 @@ jobs:
           cache: maven
 
       - name: Mutation Testing (PIT)
-        run: mvn -B org.pitest:pitest-maven:mutationCoverage
+        run: mvn -B test-compile org.pitest:pitest-maven:mutationCoverage
 
       - name: Upload mutation report
         if: always()
