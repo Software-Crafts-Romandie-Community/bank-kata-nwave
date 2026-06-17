@@ -1,6 +1,6 @@
 schema_version: 1
 created: 2026-06-02
-feature: phase2-web-ui
+feature: phase1-web-ui
 
 journey:
   name: "Interface web bancaire — Phase 2"
