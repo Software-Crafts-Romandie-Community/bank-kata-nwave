@@ -15,7 +15,6 @@ Feature: Account statement API — GET /api/statement content and format
     And the statement entry at position 1 has type "DEPOSIT" and amount 100.00
     And the statement entry at position 2 has type "DEPOSIT" and amount 200.00
 
-  @skip
   Scenario: Each transaction in the statement has the correct JSON fields
     Given a new bank account with no transactions
     And the customer has already deposited 150.00 euros
