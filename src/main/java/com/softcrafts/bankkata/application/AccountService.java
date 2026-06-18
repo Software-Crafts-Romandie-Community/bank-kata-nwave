@@ -3,8 +3,12 @@ package com.softcrafts.bankkata.application;
 import com.softcrafts.bankkata.application.port.in.AccountUseCase;
 import com.softcrafts.bankkata.application.port.out.AccountRepository;
 import com.softcrafts.bankkata.domain.Account;
+import com.softcrafts.bankkata.domain.Transaction;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 
 /**
  * Application service implementing the AccountUseCase driving port.
@@ -38,5 +42,13 @@ public class AccountService implements AccountUseCase {
         account.withdraw(amount);
         accountRepository.save(account);
         return account.getBalance();
+    }
+
+    @Override
+    public List<Transaction> getStatement() {
+        Account account = accountRepository.load();
+        List<Transaction> transactions = new ArrayList<>(account.getTransactions());
+        transactions.sort(Comparator.comparing(Transaction::timestamp).reversed());
+        return transactions;
     }
 }

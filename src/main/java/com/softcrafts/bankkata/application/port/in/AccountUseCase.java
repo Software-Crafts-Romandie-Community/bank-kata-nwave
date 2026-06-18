@@ -1,6 +1,9 @@
 package com.softcrafts.bankkata.application.port.in;
 
+import com.softcrafts.bankkata.domain.Transaction;
+
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * Primary port (driving port) — behavioural contract for account operations.
@@ -15,4 +18,6 @@ public interface AccountUseCase {
     BigDecimal deposit(BigDecimal amount);
 
     BigDecimal withdraw(BigDecimal amount);
+
+    List<Transaction> getStatement();
 }
