@@ -29,7 +29,6 @@ Feature: Account statement API — GET /api/statement content and format
     Then the response status is 200 OK
     And the statement is empty
 
-  @skip
   Scenario: Decimal transaction amounts are preserved without loss of precision
     Given a new bank account with no transactions
     And the customer has already deposited 149.99 euros
