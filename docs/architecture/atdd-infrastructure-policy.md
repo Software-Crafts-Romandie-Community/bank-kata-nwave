@@ -19,4 +19,10 @@ Apply-if-exists; write-if-absent; rewrite with `--policy=fresh`. Git history is 
 
 | Port | Fake | Note |
 |------|------|------|
-| (none Phase 1) | n/a | No external dependencies in Phase 1 — no clock, email, or third-party API |
+| (none Phase 1+2) | n/a | No external dependencies — no clock port, email, or third-party API |
+
+> **Phase 2 note — embedded clock**: `Instant.now()` is called inside `Account.deposit()` and
+> `Account.withdraw()`. It is NOT abstracted as a port (no `Clock` injection). Sort-order
+> acceptance tests rely on the natural sequential timing of MockMvc calls (~1ms per call).
+> Consequence: tests cannot inject a controlled clock. Acceptable for Phase 2; revisit if
+> nanosecond-precision edge cases cause flakiness.

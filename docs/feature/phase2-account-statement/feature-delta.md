@@ -364,3 +364,114 @@ Note de configuration : vérifier la présence de `spring.jackson.serialization.
 8. **WCAG 2.1 AA** : `<th scope="col">`, `aria-label` sur bouton "Relevé", contraste >= 4.5:1, focus visible. Critères d'acceptance comportementaux (WHAT, non HOW) — à formaliser en DISTILL : (a) un utilisateur naviguant au clavier uniquement peut atteindre le bouton "Relevé" et déclencher l'affichage du tableau ; (b) un utilisateur naviguant au clavier peut parcourir les lignes du tableau et voir un indicateur de focus visible sur chaque cellule interactive ; (c) le contraste texte/fond est >= 4.5:1 sur tous les éléments de texte du tableau (mesurable via axe DevTools ou WCAG Contrast Checker).
 9. **Aucune nouvelle dépendance** Maven ni npm.
 10. **`GET /api/statement`** : répond `200 OK` avec liste vide `[]` si aucune transaction — jamais 404.
+
+---
+
+## Wave: DISTILL / [REF] Scenario List
+
+| Scénario | Tags | Fichier feature |
+|----------|------|----------------|
+| The customer retrieves a non-empty statement after making a deposit | `@walking_skeleton @real-io @driving_port @US-WS2` | `walking-skeleton.feature` |
+| The statement shows all transactions in reverse chronological order | `@real-io @driving_port @US-S1 @skip` | `statement-api.feature` |
+| Each transaction in the statement has the correct JSON fields | `@real-io @driving_port @US-S1 @skip` | `statement-api.feature` |
+| The statement returns an empty array when no transactions have occurred | `@real-io @driving_port @US-S1 @skip @error` | `statement-api.feature` |
+| Decimal transaction amounts are preserved without loss of precision | `@real-io @driving_port @US-S1 @skip` | `statement-api.feature` |
+| Statement amounts and current balance are consistent after mixed operations | `@real-io @driving_port @US-S1 @skip` | `statement-api.feature` |
+
+---
+
+## Wave: DISTILL / [REF] Walking Skeleton Strategy
+
+Architecture of Reference appliquée par héritage Phase 1 (`--policy=inherit`) :
+
+| Port class | Treatment | Mechanism |
+|------------|-----------|-----------|
+| Driving — `AccountController` | Real adapter | MockMvc via `@SpringBootTest(webEnvironment = MOCK)` + `@AutoConfigureMockMvc` |
+| Driven internal — `AccountRepository` | Real bean | `InMemoryAccountRepository` (`@Component` Spring singleton), reset en `@Before` |
+| Driven external / non-déterministe | Fake | Aucun en Phase 2 |
+
+**Limitation Instant.now()** : l'horodatage est produit par `Instant.now()` directement dans
+`Account.deposit()` et `Account.withdraw()` — non injecté comme port. Les tests de tri reposent
+sur l'ordre naturel des appels MockMvc séquentiels (~1 ms entre appels). Risque de flakiness
+négligeable en pratique (résolution nanosecondes de `Instant`).
+
+---
+
+## Wave: DISTILL / [REF] Adapter Coverage
+
+| Adaptateur | Scénario @real-io | Couvert par |
+|------------|------------------|-------------|
+| `AccountController` — `GET /api/statement` | OUI | Walking skeleton + tous les scénarios statement-api |
+| `InMemoryAccountRepository` | OUI (hérité Phase 1) | Tous les scénarios via contexte Spring |
+
+Aucun nouveau port driven. `AccountRepository` REUSE AS-IS (décision DESIGN).
+
+---
+
+## Wave: DISTILL / [REF] Scaffolds
+
+| Artefact | Chemin | Rôle |
+|----------|--------|------|
+| `walking-skeleton.feature` | `src/test/resources/features/account-statement/` | Walking skeleton — scénario activé, RED par 404 |
+| `statement-api.feature` | `src/test/resources/features/account-statement/` | 5 scénarios `@skip` — activés un par un en DELIVER |
+| `AccountStatementAcceptanceTest.java` | `src/test/java/com/softcrafts/bankkata/acceptance/` | Runner Cucumber → `features/account-statement` |
+| `AccountStatementSteps.java` | `src/test/java/com/softcrafts/bankkata/acceptance/steps/` | Step definitions Phase 2 (partage le contexte Phase 1) |
+
+**Scaffolds production** : aucun fichier stub production nécessaire.
+Le test en RED est classifié MISSING_FUNCTIONALITY : `GET /api/statement` n'existe pas dans
+`AccountController` → MockMvc retourne 404 → `andExpect(status().isOk())` lève `AssertionError`.
+Les step definitions compilent sans importer `TransactionDto` (assertions via `jsonPath()`).
+
+**Configuration ajoutée** : `spring.jackson.serialization.write-dates-as-timestamps=false`
+dans `application.properties` → `Instant` sérialisé en ISO 8601 string (OQ-2 résolu).
+
+---
+
+## Wave: DISTILL / [REF] Test Placement
+
+Convention Phase 1 reconduite :
+
+| Artefact | Emplacement |
+|----------|-------------|
+| Feature files | `src/test/resources/features/account-statement/` |
+| Test runners | `src/test/java/com/softcrafts/bankkata/acceptance/` |
+| Step definitions | `src/test/java/com/softcrafts/bankkata/acceptance/steps/` |
+| Rapports Cucumber | `target/cucumber-reports/account-statement.html` |
+
+---
+
+## Wave: DISTILL / [REF] Driving Adapter Coverage
+
+| Driving Adapter | Entry point | Scénario @walking_skeleton |
+|-----------------|-------------|---------------------------|
+| `AccountController` | `GET /api/statement` | "The customer retrieves a non-empty statement after making a deposit" |
+
+Tous les scénarios Phase 2 passent par `GET /api/statement` via MockMvc.
+Les 3 endpoints Phase 1 (`GET /api/balance`, `POST /api/deposit`, `POST /api/withdraw`)
+sont exercés en Given/Then steps — rétrocompatibilité confirmée structurellement.
+
+---
+
+## Wave: DISTILL / [REF] Pre-requisites
+
+| Pré-requis | Statut |
+|------------|--------|
+| Phase 1 walking skeleton GREEN | Requis — steps Given partagés (`a new bank account`, `customer deposited`) |
+| `Account.getTransactions()` accessible | VÉRIFIÉ — méthode présente dans `Account.java` Phase 1 |
+| `spring.jackson.serialization.write-dates-as-timestamps=false` | FAIT — ajouté à `application.properties` |
+| ATDD Infrastructure Policy — MockMvc + InMemoryAccountRepository | HÉRITÉ Phase 1 — `docs/architecture/atdd-infrastructure-policy.md` mis à jour |
+
+---
+
+## Wave: DISTILL / [REF] Non couvert par les AT automatisés (hors scope MockMvc)
+
+Les critères d'acceptance suivants concernent le rendu React — non vérifiables via MockMvc.
+Nécessitent une infrastructure browser (Playwright / Selenium) absente du projet.
+
+| AC | Pourquoi non couvert | Action future |
+|----|----------------------|---------------|
+| AC #3 UI : message "Aucune transaction enregistrée..." affiché | Rendu React côté client | Playwright E2E en Phase 3+ |
+| AC #4 UI : type "Dépôt"/"Retrait", montant signé +/- | Formatage React `StatementView` | Playwright E2E en Phase 3+ |
+| AC #5 UI : solde pied de page identique à GET /api/balance | Composant React affiche solde séparé | Playwright E2E en Phase 3+ |
+| AC #6 UI : date formatée `dd/MM/yyyy HH:mm` timezone locale | `Intl.DateTimeFormat` côté navigateur | Playwright E2E en Phase 3+ |
+| AC #7 WCAG 2.1 AA : navigation clavier, focus visible, contraste | Browser-only | Audit axe-core + revue manuelle en DELIVER |
