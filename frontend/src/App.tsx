@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import * as bankApi from './api/bankApi'
+import type { TransactionDto } from './api/bankApi'
 import type { ApiError } from './types'
 import BalanceDisplay from './components/BalanceDisplay/BalanceDisplay'
 import OperationForm from './components/OperationForm/OperationForm'
+import StatementView from './StatementView'
 
 type OperationType = 'deposit' | 'withdraw'
 
@@ -24,6 +26,8 @@ export default function App() {
   const [balance, setBalance] = useState<number | null>(null)
   const [balanceError, setBalanceError] = useState<string | null>(null)
   const [operationError, setOperationError] = useState<string | null>(null)
+  const [showStatement, setShowStatement] = useState(false)
+  const [transactions, setTransactions] = useState<TransactionDto[]>([])
 
   useEffect(() => {
     bankApi
@@ -43,6 +47,22 @@ export default function App() {
     }
   }
 
+  async function loadStatement() {
+    const data = await bankApi.getStatement()
+    setTransactions(data)
+    setShowStatement(true)
+  }
+
+  if (showStatement) {
+    return (
+      <StatementView
+        transactions={transactions}
+        balance={balance ?? 0}
+        onBack={() => setShowStatement(false)}
+      />
+    )
+  }
+
   return (
     <div className="app">
       <header className="app-header">
@@ -56,6 +76,14 @@ export default function App() {
         <div className="section-divider" aria-hidden="true">Opération</div>
 
         <OperationForm onSubmit={handleOperation} error={operationError} />
+
+        <button
+          type="button"
+          aria-label="Voir le relevé de compte"
+          onClick={loadStatement}
+        >
+          Relevé
+        </button>
       </main>
 
       <footer className="app-footer">

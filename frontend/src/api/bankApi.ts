@@ -1,5 +1,11 @@
 import type { BalanceResponse, ApiError } from '../types'
 
+export interface TransactionDto {
+  type: string // "DEPOSIT" or "WITHDRAWAL"
+  amount: number
+  date: string // ISO 8601 string e.g. "2026-06-18T14:32:00Z"
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const body = await response.json().catch(() => ({}))
@@ -33,4 +39,9 @@ export async function withdraw(amount: number): Promise<BalanceResponse> {
     body: JSON.stringify({ amount }),
   })
   return handleResponse<BalanceResponse>(response)
+}
+
+export async function getStatement(): Promise<TransactionDto[]> {
+  const response = await fetch('/api/statement')
+  return handleResponse<TransactionDto[]>(response)
 }
