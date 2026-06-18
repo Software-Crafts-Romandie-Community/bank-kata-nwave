@@ -239,3 +239,128 @@ Voir `docs/feature/phase2-account-statement/discuss/outcome-kpis.md`
 | Régression Phase 1 — ajout endpoint rompt les tests existants | Faible | Moyen | Tests Phase 1 tournent dans le même contexte Spring — à vérifier en DESIGN |
 | Tri incohérent si deux transactions ont le même timestamp (Instant) | Faible | Faible | Décision DESIGN : ordre stable par insertion si timestamps égaux |
 | Formatage date timezone : Instant UTC affiché incorrectement | Moyen | Moyen | Formatage côté React avec `Intl.DateTimeFormat` — décision DESIGN |
+
+---
+
+## Wave: DESIGN / [REF] DDD Decision List
+
+| # | Question | Verdict | Rationale |
+|---|----------|---------|-----------|
+| D1 | DTO de sortie : `TransactionDto` (nouveau record) ou `Transaction` directement ? | **TransactionDto** — CREATE NEW | `Transaction` est un objet domaine avec `Instant` — exposer le type domaine dans le contrat HTTP couplait l'évolution du domaine au contrat API. `TransactionDto(String type, BigDecimal amount, String date)` est le contrat HTTP stable. Mapping dans `AccountController`. |
+| D2 | Tri par `timestamp` : côté domaine, use case ou adaptateur ? | **Use case** (`AccountUseCase.getStatement()`) | "Afficher les transactions dans l'ordre chronologique inverse" est une règle de consultation métier, pas de présentation. Le controller a zéro logique métier (confirmé par son Javadoc). Le tri au niveau use case est testable à la couche application sans HTTP. L'ordre stable en cas de timestamps identiques : ordre d'insertion (comportement de `ArrayList` conservé). |
+| D3 | Navigation React : `react-router` ou état conditionnel ? | **État conditionnel** (`showStatement: boolean`) | Phase 1 n'a pas de router. Ajouter `react-router` pour une seule vue alternative violerait YAGNI et introduit une dépendance non justifiée. `showStatement` state dans `App.tsx` — bouton "Relevé" → `setShowStatement(true)`, bouton "Retour" dans `StatementView` → `setShowStatement(false)`. |
+| D4 | Format date JSON : ISO 8601 ou epoch ms (Long) ? | **ISO 8601** (`Instant.toString()` → `"2026-06-18T14:32:00Z"`) | Standard universel, lisible, interopérable. Formatage `dd/MM/yyyy HH:mm` côté React via `Intl.DateTimeFormat` avec timezone locale du navigateur — aucune perte de précision, aucune lib supplémentaire. |
+| D5 | Accessibilité WCAG 2.1 AA : niveau et exigences minimales ? | **WCAG 2.1 AA confirmé** | Exigences minimales (AC#7) : `<th scope="col">` sur chaque en-tête de colonne, `aria-label` sur le bouton "Relevé" si accompagné d'une icône seule, contraste texte/fond >= 4.5:1, navigation clavier (tab order naturel), indicateur de focus visible (`:focus-visible`). |
+| D6 | Procédure de réclamation si transaction manquante ? | **Hors scope Phase 2 — déféré Phase 3** | La persistance en mémoire (InMemoryAccountRepository) ne permet pas de piste d'audit fiable entre sessions. La procédure de réclamation requiert la persistance (Phase 3+). Documenté dans les questions ouvertes ci-dessous. |
+
+---
+
+## Wave: DESIGN / [REF] Component Decomposition
+
+| Composant | Couche | Chemin | Changement | Contract Shape |
+|-----------|--------|--------|------------|----------------|
+| `AccountUseCase` | application/port/in | `application/port/in/AccountUseCase.java` | EXTEND — + `List<Transaction> getStatement()` | pure-function (retourne une vue — aucun effet de bord dans le port) |
+| `AccountService` | application | `application/AccountService.java` | EXTEND — implémente `getStatement()` : récupère `account.getTransactions()`, trie par timestamp décroissant, retourne liste immuable | pure-function (lecture seule — aucune mutation) |
+| `AccountController` | adapter/in/web | `adapter/in/web/AccountController.java` | EXTEND — + `GET /api/statement` : appel `accountUseCase.getStatement()` + mapping `Transaction → TransactionDto` + `200 OK List<TransactionDto>` | unbounded-preservation (traduit le plan domaine en réponse HTTP, ne mute pas) |
+| `TransactionDto` | adapter/in/web | `adapter/in/web/TransactionDto.java` | CREATE NEW — Java record `TransactionDto(String type, BigDecimal amount, String date)` | pure-function (value object immuable — contrat HTTP) |
+| `StatementView` | frontend | `frontend/src/StatementView.tsx` | CREATE NEW — composant React : tableau 3 colonnes (Date, Type, Montant) + état vide + solde en pied de tableau + bouton "Retour" | — (frontend) |
+| `bankApi.ts` | frontend | `frontend/src/api/bankApi.ts` | EXTEND — + `getStatement(): Promise<TransactionDto[]>` — même pattern fetch que `getBalance()` | — (frontend) |
+| `App.tsx` | frontend | `frontend/src/App.tsx` | EXTEND — + state `showStatement: boolean` + bouton "Relevé" → `setShowStatement(true)` + rendu conditionnel `StatementView` | — (frontend) |
+
+Composants non modifiés : `Account`, `Transaction`, `InsufficientFundsException`, `AccountRepository`, `InMemoryAccountRepository`, `BankApplication`, `DepositRequest`, `WithdrawRequest`, `BalanceResponse`.
+
+---
+
+## Wave: DESIGN / [REF] Driving Ports
+
+**Port primaire étendu : `AccountUseCase`** — couche `application/port/in`
+
+Ajout au contrat comportemental existant :
+- Consulter l'historique des transactions de la session → retourne la liste de toutes les transactions enregistrées, triée par ordre chronologique inverse (la plus récente en premier), sans modification de l'état du compte.
+
+**Adaptateur driving étendu : `AccountController`** — couche `adapter/in/web`
+
+Endpoint ajouté :
+- `GET /api/statement` → `200 OK` avec corps JSON `[{type, amount, date}]` (liste de `TransactionDto`)
+  - La liste est vide `[]` si aucune transaction n'a eu lieu — jamais de 404
+  - Aucun paramètre de requête — toutes les transactions de la session
+
+Règle d'isolation confirmée : le mapping `Transaction → TransactionDto` appartient exclusivement à `AccountController`. `AccountUseCase.getStatement()` retourne `List<Transaction>` (type domaine). La conversion de `Instant` en String ISO 8601 et le rendu de `Transaction.Type` en String se font dans l'adaptateur.
+
+---
+
+## Wave: DESIGN / [REF] Driven Ports
+
+Aucun nouveau port secondaire pour Phase 2.
+
+**`AccountRepository`** — REUSE AS-IS. `AccountService.getStatement()` appelle `account.getTransactions()` via l'instance `Account` déjà chargée par le repository. Aucune modification du contrat `AccountRepository` ni de `InMemoryAccountRepository`.
+
+---
+
+## Wave: DESIGN / [REF] Technology Choices
+
+Stack Phase 1 **inchangée**. Aucune nouvelle dépendance Maven ni npm.
+
+| Décision | Verdict | Justification |
+|----------|---------|---------------|
+| `TransactionDto` — sérialisation `BigDecimal` | Spring Boot Jackson par défaut (Number avec 2 décimales) | Cohérence avec `BalanceResponse` Phase 1 — pas de `@JsonFormat` supplémentaire requis si la même configuration Jackson globale est en place |
+| `Instant` → String JSON | `Instant.toString()` → ISO 8601 natif Java | Aucune annotation Jackson nécessaire — `Instant` sérialisé en `"2026-06-18T14:32:00Z"` par défaut avec `spring.jackson.serialization.write-dates-as-timestamps=false` (à confirmer en configuration Spring Boot) |
+| Formatage date dans l'UI | `Intl.DateTimeFormat` (API navigateur native) | Zéro dépendance npm — gère la timezone locale automatiquement |
+| Navigation React | État conditionnel `boolean` dans `App.tsx` | Pas de `react-router` — YAGNI (une seule vue alternative) |
+| Accessibilité | HTML sémantique natif (`<th>`, `<table>`, `aria-label`) | Pas de lib d'accessibilité tierce — WCAG 2.1 AA atteignable avec HTML natif |
+
+Note de configuration : vérifier la présence de `spring.jackson.serialization.write-dates-as-timestamps=false` dans `application.properties`. Si absent, ajouter cette propriété pour garantir la sérialisation ISO 8601 de `Instant`. C'est la seule modification de configuration potentielle.
+
+---
+
+## Wave: DESIGN / [REF] Reuse Analysis
+
+| Composant | Fichier | Overlap Phase 2 | Décision | Justification | Contract Shape |
+|-----------|---------|-----------------|----------|---------------|----------------|
+| `Account` | `domain/Account.java` | `getTransactions()` alimente le relevé | REUSE AS-IS | Méthode déjà implémentée Phase 1 — aucune modification domaine requise | bounded-change (univers = transactions propres à l'agrégat) |
+| `Transaction` | `domain/Transaction.java` | `type`, `amount`, `timestamp` lus pour le relevé | REUSE AS-IS | Record immuable — lu via mapping dans `AccountController` | pure-function (value object) |
+| `AccountUseCase` | `application/port/in/AccountUseCase.java` | Nouvelle méthode `getStatement()` | EXTEND | Ajout d'un contrat use case — une méthode vs CREATE NEW port séparé non justifié (même bounded context) | pure-function (contrat lecture seule) |
+| `AccountService` | `application/AccountService.java` | Implémentation `getStatement()` | EXTEND | Implémente la méthode ajoutée à `AccountUseCase` — même service d'orchestration | pure-function (lecture + tri, aucune mutation) |
+| `AccountController` | `adapter/in/web/AccountController.java` | Nouveau endpoint `GET /api/statement` | EXTEND | ~15 LOC ajoutées (endpoint + mapping) — pas de nouvelle classe controller justifiée | unbounded-preservation (traduit sans muter) |
+| `InMemoryAccountRepository` | `adapter/out/InMemoryAccountRepository.java` | Aucun | REUSE AS-IS | Pas de modification requise — `getTransactions()` est sur `Account`, pas sur le repository | bounded-change (univers = singleton Account en mémoire) |
+| `TransactionDto` | — | Nouveau contrat HTTP | CREATE NEW | Isolation domaine/HTTP — `Transaction` contient `Instant` et `Type` enum non sérialisables directement au format désiré ; `TransactionDto` est le contrat HTTP stable indépendant du domaine | pure-function (value object HTTP) |
+| `StatementView` | `frontend/src/` | Nouveau composant React | CREATE NEW | Aucun équivalent existant — vue dédiée au tableau transactions | — |
+| `bankApi.ts` | `frontend/src/api/bankApi.ts` | Nouvelle fonction `getStatement()` | EXTEND | Pattern fetch existant réutilisé — cohérence avec `getBalance()` | — |
+| `App.tsx` | `frontend/src/App.tsx` | Bouton "Relevé" + état `showStatement` | EXTEND | Ajout conditionnel simple — pas de nouveau composant page | — |
+
+---
+
+## Wave: DESIGN / [REF] Open Questions
+
+| # | Question | Statut | Action |
+|---|----------|--------|--------|
+| OQ-1 | Procédure de réclamation si transaction manquante | Déféré Phase 3 | Requiert persistance persistante (base de données) + piste d'audit entre sessions. Hors scope Phase 2 (in-memory). À traiter quand Phase 3 introduit la persistence. |
+| OQ-2 | `spring.jackson.serialization.write-dates-as-timestamps` — présent dans `application.properties` ? | À vérifier DISTILL | Si absent, ajouter `spring.jackson.serialization.write-dates-as-timestamps=false` — sinon `Instant` sérialisé en tableau `[year, month, ...]` au lieu de String ISO 8601. |
+| OQ-3 | Stabilité du tri si deux transactions ont le même `Instant` (résolution nanoseconde) | À préciser DISTILL | Ordre de tri stable = ordre d'insertion (comportement de `List.sort()` stable + `ArrayList` conserve l'ordre d'insertion). Préciser dans les AC du slice. |
+| OQ-4 | `BigDecimal` sérialisé en Number avec 2 décimales dans `TransactionDto` | À confirmer DISTILL | Cohérence avec `BalanceResponse` Phase 1. Confirmer la configuration Jackson globale existante. |
+
+---
+
+## Wave: DESIGN / [HANDOFF] DISTILL Wave Package
+
+### Artefacts produits
+
+| Artefact | Chemin | Contenu |
+|----------|--------|---------|
+| Feature delta (ce fichier, sections DESIGN ajoutées) | `docs/feature/phase2-account-statement/feature-delta.md` | Décisions D1-D6, reuse analysis, composants, ports |
+| Brief architecture (section Phase 2 ajoutée) | `docs/product/architecture/brief.md` | C4 mis à jour, composants Phase 2, stack confirmée |
+| ADR-004 | `docs/product/architecture/adr-004-transaction-dto.md` | Isolation domaine/HTTP via TransactionDto |
+| ADR-005 | `docs/product/architecture/adr-005-react-conditional-navigation.md` | Navigation React conditionnelle vs react-router |
+
+### Contraintes établies pour DISTILL
+
+1. **Rétrocompatibilité totale** : les 3 endpoints Phase 1 (`GET /api/balance`, `POST /api/deposit`, `POST /api/withdraw`) et leurs tests ne sont pas modifiés.
+2. **Règle hexagonale** : `domain/` n'importe jamais `adapter/` ni `org.springframework.*` — ArchUnit confirme.
+3. **Contrat du port** : `AccountUseCase.getStatement()` retourne `List<Transaction>` (type domaine). Le mapping vers `TransactionDto` se fait uniquement dans `AccountController`.
+4. **`TransactionDto`** : Java record dans le package `adapter/in/web/` — `TransactionDto(String type, BigDecimal amount, String date)`.
+5. **Format date JSON** : ISO 8601 (`Instant.toString()`) — vérifier `spring.jackson.serialization.write-dates-as-timestamps=false`.
+6. **Tri** : chronologique inverse dans `AccountService.getStatement()` — ordre stable par insertion en cas de timestamps identiques.
+7. **Navigation React** : état conditionnel `showStatement` dans `App.tsx` — pas de `react-router`.
+8. **WCAG 2.1 AA** : `<th scope="col">`, `aria-label` sur bouton "Relevé", contraste >= 4.5:1, focus visible. Critères d'acceptance comportementaux (WHAT, non HOW) — à formaliser en DISTILL : (a) un utilisateur naviguant au clavier uniquement peut atteindre le bouton "Relevé" et déclencher l'affichage du tableau ; (b) un utilisateur naviguant au clavier peut parcourir les lignes du tableau et voir un indicateur de focus visible sur chaque cellule interactive ; (c) le contraste texte/fond est >= 4.5:1 sur tous les éléments de texte du tableau (mesurable via axe DevTools ou WCAG Contrast Checker).
+9. **Aucune nouvelle dépendance** Maven ni npm.
+10. **`GET /api/statement`** : répond `200 OK` avec liste vide `[]` si aucune transaction — jamais 404.

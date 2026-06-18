@@ -293,3 +293,165 @@ Règles à encoder en CI via ArchUnit :
 | [ADR-001](adr-001-hexagonal-oop.md) | Architecture Hexagonale + OOP | Accepté — confirmé et renforcé (pivot web) |
 | [ADR-002](adr-002-java21.md) | Java 21 LTS | Accepté — inchangé |
 | [ADR-003](adr-003-spring-boot.md) | Spring Boot 3.x comme framework web | Accepté — nouveau (pivot 2026-06-02) |
+
+---
+
+## Application Architecture — Phase 2 : Account Statement
+
+**Date** : 2026-06-18
+**Architecte** : Morgan (nw-solution-architect)
+**Statut** : Approuvé — prêt pour DISTILL wave
+
+---
+
+### Contexte Phase 2
+
+Phase 2 étend l'application Phase 1 d'une seule fonctionnalité : consulter l'historique des transactions de la session. L'architecture hexagonale, la stack technologique et toutes les décisions Phase 1 sont inchangées. Phase 2 ajoute un endpoint REST, un use case, un DTO HTTP et un composant React — sans modifier aucun composant domaine.
+
+---
+
+### Diagramme C4 — Niveau 1 : System Context (Phase 2)
+
+```mermaid
+C4Context
+  title System Context — Bank Application (Phase 2)
+
+  Person(marie, "Marie", "Cliente bancaire, 35 ans. Gere son compte et consulte son historique depuis un navigateur.")
+  System(bankApp, "Bank Application", "Application web Spring Boot 3.x. Expose une REST API et un frontend HTML. Gere un compte bancaire en memoire : solde, depot, retrait, historique des transactions.")
+
+  Rel(marie, bankApp, "Consulte le solde, depose, retire et consulte le releve via", "HTTPS / navigateur")
+```
+
+---
+
+### Diagramme C4 — Niveau 2 : Container (Phase 2)
+
+```mermaid
+C4Container
+  title Container Diagram — Bank Application (Phase 2)
+
+  Person(marie, "Marie", "Cliente bancaire")
+
+  Container(browser, "Navigateur", "React 18 + TypeScript (Vite)", "Affiche le solde, les formulaires et le releve des transactions. Envoie les requetes fetch vers l'API REST.")
+  Container(statementView, "StatementView", "React 18 — composant TSX", "Affiche le tableau Date|Type|Montant, l'etat vide et le solde en pied. Bouton Retour -> App.tsx.")
+  Container(staticRes, "Static Resources", "Spring Boot static — src/main/resources/static/", "Sert index.html et app.js sur GET /. Aucune logique metier.")
+  Container(controller, "AccountController", "Java 21 — @RestController Spring Boot", "Adaptateur driving HTTP. Traduit les requetes REST en appels AccountUseCase. Mappe Transaction -> TransactionDto. Traduit les exceptions domaine en codes HTTP.")
+  Container(transactionDto, "TransactionDto", "Java 21 — record adapter/in/web", "Contrat HTTP sortant pour les transactions : type (String), amount (BigDecimal), date (String ISO 8601). Isole le domaine du contrat API.")
+  Container(service, "AccountService", "Java 21 — application", "Orchestre les cas d'usage : deposer, retirer, consulter le solde, consulter l'historique. Implements AccountUseCase. Aucune dependance Spring.")
+  Container(domain, "Account + Transaction", "Java 21 — domain", "Agregat metier. Maintient le solde (BigDecimal). Protege la regle : solde >= 0. Accumule les transactions (DEPOSIT/WITHDRAWAL).")
+  Container(portIn, "AccountUseCase", "Java 21 — port primaire (interface)", "Contrat des cas d'usage exposes au driving adapter. Phase 2 : + getStatement() -> List<Transaction>.")
+  Container(portOut, "AccountRepository", "Java 21 — port secondaire (interface)", "Contrat de chargement et sauvegarde du compte. Inchange Phase 2.")
+  Container(adapterOut, "InMemoryAccountRepository", "Java 21 — @Component Spring Boot", "Implements AccountRepository. Stockage en memoire. Singleton Spring. Inchange Phase 2.")
+  Container(appEntry, "BankApplication", "Java 21 — @SpringBootApplication", "Composition root Spring. Demarre le contexte, cable les beans, lance le serveur embarque Tomcat.")
+  Container(bankApi, "bankApi.ts", "TypeScript — frontend/src/api/", "Fonctions fetch vers l'API REST. Phase 2 : + getStatement() -> Promise<TransactionDto[]>.")
+
+  Rel(marie, browser, "Interagit avec", "navigateur")
+  Rel(browser, staticRes, "Charge la page via", "GET /")
+  Rel(browser, controller, "Envoie les operations via", "fetch — GET /api/balance, POST /api/deposit, POST /api/withdraw")
+  Rel(browser, controller, "Consulte le releve via", "fetch — GET /api/statement")
+  Rel(browser, statementView, "Affiche le releve via", "rendu conditionnel showStatement")
+  Rel(statementView, bankApi, "Charge les transactions via", "getStatement()")
+  Rel(bankApi, controller, "Appelle", "GET /api/statement")
+  Rel(staticRes, browser, "Retourne", "index.html + app.js")
+  Rel(controller, portIn, "Delègue les operations à", "appel methode — AccountUseCase")
+  Rel(controller, transactionDto, "Mappe Transaction vers", "mapping dans adaptateur")
+  Rel(service, portIn, "Implemente", "")
+  Rel(service, domain, "Manipule", "appel methode — Account")
+  Rel(service, portOut, "Charge et persiste le compte via", "appel methode — AccountRepository")
+  Rel(adapterOut, portOut, "Implemente", "")
+  Rel(appEntry, controller, "Instancie via contexte Spring", "")
+  Rel(appEntry, adapterOut, "Injecte dans AccountService via contexte Spring", "")
+  Rel(controller, browser, "Retourne la reponse JSON via", "HTTP 200")
+```
+
+---
+
+### Composants Phase 2
+
+| Composant | Couche | Changement | Responsabilité |
+|-----------|--------|------------|----------------|
+| `AccountUseCase` | application/port/in | EXTEND | + contrat comportemental `getStatement()` : retourne les transactions de la session triées par ordre chronologique inverse |
+| `AccountService` | application | EXTEND | + implémentation `getStatement()` : lit `account.getTransactions()`, trie par `timestamp` décroissant, retourne liste immuable |
+| `AccountController` | adapter/in/web | EXTEND | + `GET /api/statement` : appel use case + mapping `Transaction → TransactionDto` + `200 OK List<TransactionDto>` |
+| `TransactionDto` | adapter/in/web | CREATE NEW | Java record `TransactionDto(String type, BigDecimal amount, String date)` — contrat HTTP stable, isolé du domaine |
+| `StatementView` | frontend | CREATE NEW | Tableau React 3 colonnes (Date, Type, Montant) + état vide + solde en pied + bouton "Retour" |
+| `bankApi.ts` | frontend/api | EXTEND | + `getStatement(): Promise<TransactionDto[]>` |
+| `App.tsx` | frontend | EXTEND | + state `showStatement: boolean` + bouton "Relevé" + rendu conditionnel |
+
+---
+
+### Ports Phase 2
+
+**Port primaire étendu : `AccountUseCase`**
+
+Ajout au contrat comportemental Phase 1 :
+- Consulter l'historique : retourne toutes les transactions enregistrées dans la session, triées par ordre chronologique inverse (la plus récente en premier). Aucune modification de l'état du compte.
+
+**Adaptateur driving étendu : `AccountController`**
+
+Endpoint ajouté : `GET /api/statement` → `200 OK` avec `List<TransactionDto>` (liste vide `[]` si aucune transaction, jamais 404).
+
+Règle d'isolation : `AccountUseCase.getStatement()` retourne `List<Transaction>` (type domaine). Le mapping `Transaction → TransactionDto` appartient exclusivement à `AccountController`.
+
+**Ports driven** : aucun nouveau port secondaire. `AccountRepository` REUSE AS-IS.
+
+---
+
+### Structure des packages Java (Phase 2 — delta)
+
+```
+adapter/
+  in/
+    web/
+      AccountController.java      (EXTEND — + GET /api/statement)
+      TransactionDto.java         (CREATE NEW — record DTO sortant)
+      DepositRequest.java         (inchangé)
+      WithdrawRequest.java        (inchangé)
+      BalanceResponse.java        (inchangé)
+application/
+  port/
+    in/  AccountUseCase.java      (EXTEND — + getStatement())
+  AccountService.java             (EXTEND — + implémentation getStatement())
+domain/                           (inchangé — Account, Transaction, InsufficientFundsException)
+```
+
+---
+
+### Stack technologique Phase 2
+
+Stack Phase 1 **inchangée**. Aucune nouvelle dépendance Maven ni npm.
+
+| Décision | Verdict |
+|----------|---------|
+| `Instant` → JSON | `Instant.toString()` → ISO 8601 via `spring.jackson.serialization.write-dates-as-timestamps=false` (à confirmer dans `application.properties`) |
+| `BigDecimal` → JSON | Number avec 2 décimales — configuration Jackson globale existante (cohérence Phase 1) |
+| Formatage date UI | `Intl.DateTimeFormat` (API navigateur native, zéro dépendance) |
+| Navigation React | État conditionnel `showStatement: boolean` — pas de `react-router` (ADR-005) |
+
+---
+
+### Règles hexagonales — Phase 2
+
+Toutes les règles ArchUnit Phase 1 restent actives. Phase 2 ne les modifie pas.
+
+`TransactionDto` appartient au package `adapter.in.web` — jamais importé par `domain` ni `application`.
+`AccountUseCase.getStatement()` retourne `List<Transaction>` — le type domaine ne dépend jamais de l'adaptateur.
+
+---
+
+### Questions ouvertes — Phase 2
+
+| # | Question | Action |
+|---|----------|--------|
+| OQ-1 | Procédure réclamation transaction manquante | Déféré Phase 3 (persistance requise) |
+| OQ-2 | `spring.jackson.serialization.write-dates-as-timestamps=false` présent ? | Vérifier `application.properties` en DISTILL |
+| OQ-3 | Stabilité tri timestamps identiques | Ordre d'insertion — à préciser dans les AC DISTILL |
+
+---
+
+### ADRs Phase 2
+
+| ADR | Titre | Statut |
+|-----|-------|--------|
+| [ADR-004](adr-004-transaction-dto.md) | Isolation domaine/HTTP via TransactionDto | Accepté |
+| [ADR-005](adr-005-react-conditional-navigation.md) | Navigation React conditionnelle vs react-router | Accepté |
