@@ -1,0 +1,173 @@
+schema_version: 1
+created: 2026-06-18
+updated: 2026-06-18
+feature: phase2-account-statement
+job_id: job-002
+
+journey:
+  name: "Consultation du relevé de compte — Phase 2"
+  goal: "Voir toutes les transactions de la session avec leur type et leur date"
+  persona: "Marie — cliente bancaire, 35 ans, utilise le web pour ses finances quotidiennes"
+
+  emotional_arc:
+    start: "Curiosité — Marie veut vérifier ce qui s'est passé sur son compte"
+    middle: "Attention — elle parcourt la liste et reconcilie mentalement les montants"
+    end: "Rassurance — la liste correspond à ses souvenirs, son compte est juste"
+
+steps:
+  - id: 1
+    name: "Accéder au relevé depuis la page de gestion"
+    action: "Cliquer sur le bouton 'Relevé' sur la page principale"
+
+    web_mockup: |
+      +----------------------------------------------------------+
+      | Bank — Mon Compte                         [localhost]     |
+      +----------------------------------------------------------+
+      |                                                          |
+      |   Solde actuel                                           |
+      |   +--------------------------------------------+        |
+      |   |   250,00 EUR                               |        |
+      |   +--------------------------------------------+        |
+      |                                                          |
+      |   [ Déposer ]     [ Retirer ]     [ Relevé ]            |
+      +----------------------------------------------------------+
+
+    shared_artifacts:
+      - name: balance
+        source: "Account domain object — GET /api/balance (Phase 1)"
+        displayed_as: "${balance} EUR"
+        consumers:
+          - "Page principale (Phase 1)"
+          - "Pied de page du relevé (Phase 2)"
+
+    emotional_state:
+      entry: "Orientée — Marie a un solde et des opérations effectuées"
+      exit: "Curieuse — elle clique pour voir l'historique"
+
+    integration_checkpoint: |
+      Le bouton "Relevé" est présent et accessible sur la page principale Phase 1.
+      Il déclenche GET /api/statement (nouveau endpoint Phase 2).
+
+    failure_modes:
+      - "Bouton absent — régression Phase 1 (hors scope Phase 2)"
+
+    gherkin: |
+      Scenario: Marie navigue vers le relevé depuis la page principale
+        Given Marie est sur la page principale http://localhost:8080
+        And son solde affiché est 250,00 EUR
+        When Marie clique sur le bouton "Relevé"
+        Then la liste de ses transactions s'affiche dans le navigateur
+        And le solde affiché en bas du relevé est 250,00 EUR
+
+  - id: 2
+    name: "Afficher la liste des transactions"
+    action: "Navigateur affiche GET /api/statement — liste rendue côté client"
+
+    web_mockup: |
+      +----------------------------------------------------------+
+      | Bank — Relevé de compte                   [localhost]     |
+      +----------------------------------------------------------+
+      |                                                          |
+      |   Relevé de compte                                       |
+      |   +-------------------------------------------------+    |
+      |   | Date              | Type      | Montant         |    |
+      |   |-------------------|-----------|-----------------|    |
+      |   | 18/06/2026 14:32  | Dépôt     | + 300,00 EUR    |    |
+      |   | 18/06/2026 14:15  | Retrait   |  - 50,00 EUR    |    |
+      |   | 18/06/2026 14:01  | Dépôt     | + 100,00 EUR    |    |
+      |   | 18/06/2026 13:45  | Dépôt     | + 200,00 EUR    |    |
+      |   +-------------------------------------------------+    |
+      |                                                          |
+      |   Solde actuel : 550,00 EUR                              |
+      |   [ ← Retour au compte ]                                 |
+      +----------------------------------------------------------+
+
+    shared_artifacts:
+      - name: transactions
+        source: "Account.getTransactions() — liste immuable de Transaction records"
+        displayed_as: "tableau lignes : ${date} | ${type} | ${amount}"
+        consumers:
+          - "Tableau du relevé (toutes les lignes)"
+      - name: transaction_type
+        source: "Transaction.type (enum : DEPOSIT / WITHDRAWAL)"
+        displayed_as: "DEPOSIT → 'Dépôt' | WITHDRAWAL → 'Retrait'"
+        consumers:
+          - "Colonne 'Type' du tableau"
+          - "Signe du montant (+ pour DEPOSIT, - pour WITHDRAWAL)"
+      - name: transaction_amount
+        source: "Transaction.amount (BigDecimal)"
+        displayed_as: "+ X,XX EUR (DEPOSIT) ou - X,XX EUR (WITHDRAWAL)"
+        consumers:
+          - "Colonne 'Montant' du tableau"
+      - name: transaction_timestamp
+        source: "Transaction.timestamp (Instant)"
+        displayed_as: "dd/MM/yyyy HH:mm (timezone locale navigateur)"
+        consumers:
+          - "Colonne 'Date' du tableau"
+          - "Tri décroissant par timestamp"
+      - name: balance
+        source: "Account domain object"
+        displayed_as: "${balance} EUR"
+        consumers:
+          - "Pied de page du relevé (solde actuel confirmé)"
+
+    emotional_state:
+      entry: "Curieuse et légèrement anxieuse — les données vont-elles correspondre ?"
+      exit: "Rassurée — chaque ligne est lisible, le total est cohérent"
+
+    integration_checkpoint: |
+      GET /api/statement
+        → 200 OK
+        → body : liste JSON [{type, amount, date}] triée par date décroissante
+        → UI : tableau à 3 colonnes, date formatée, signe sur le montant
+        → État vide : message "Aucune transaction enregistrée dans cette session."
+
+    failure_modes:
+      - "Aucune transaction : état vide sans message — confus pour l'utilisateur"
+      - "Ordre aléatoire des transactions — impossible de reconcilier chronologiquement"
+      - "Montant sans signe — impossible de distinguer dépôt de retrait"
+      - "Date en format ISO brut — illisible pour un utilisateur non-technique"
+
+    gherkin: |
+      Scenario: Le relevé affiche toutes les transactions de la session dans l'ordre chronologique inverse
+        Given Marie a effectué un dépôt de 200,00 EUR à 13:45
+        And Marie a effectué un dépôt de 100,00 EUR à 14:01
+        And Marie a effectué un retrait de 50,00 EUR à 14:15
+        And Marie a effectué un dépôt de 300,00 EUR à 14:32
+        When Marie consulte son relevé de compte
+        Then la liste contient 4 transactions dans l'ordre : 300,00 EUR dépôt, 50,00 EUR retrait, 100,00 EUR dépôt, 200,00 EUR dépôt
+        And chaque transaction affiche le type (Dépôt / Retrait), le montant signé et la date
+
+      Scenario: GET /api/statement renvoie la liste structurée des transactions
+        Given le serveur Spring Boot est démarré avec 3 transactions en mémoire
+        When Thomas envoie GET /api/statement
+        Then la réponse HTTP a le statut 200 OK
+        And le corps contient une liste JSON de 3 objets avec les champs type, amount et date
+        And les transactions sont triées par date décroissante
+
+      Scenario: Le relevé affiche un état vide si aucune transaction n'a eu lieu
+        Given la session vient de démarrer et aucune opération n'a été effectuée
+        When Marie consulte son relevé de compte
+        Then la page affiche "Aucune transaction enregistrée dans cette session."
+        And aucune ligne de tableau n'est affichée
+
+integration_validation:
+  shared_artifact_consistency:
+    - artifact: balance
+      must_match_across: [1, 2]
+      failure_message: >
+        Le solde affiché dans le pied de page du relevé doit correspondre au solde
+        renvoyé par GET /api/balance — même source Account.
+    - artifact: transactions
+      must_match_across: [2]
+      failure_message: >
+        La liste affichée doit contenir exactement les transactions enregistrées dans Account —
+        ni plus, ni moins. Toute divergence est un bug critique de cohérence domaine/UI.
+
+changelog:
+  - date: "2026-06-18"
+    feature: "phase2-account-statement"
+    change: >
+      Création du parcours relevé de compte (Phase 2).
+      Job-002 : consultation de l'historique des transactions.
+      Scope : affichage de toutes les transactions sans filtre (décision session 2026-06-18).

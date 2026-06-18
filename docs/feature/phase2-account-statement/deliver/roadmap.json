@@ -1,0 +1,174 @@
+{
+  "roadmap": {
+    "project_id": "phase2-account-statement",
+    "created_at": "2026-06-18T17:48:29Z",
+    "total_steps": 7
+  },
+  "phases": [
+    {
+      "id": "01",
+      "name": "Walking Skeleton — GET /api/statement end-to-end wiring",
+      "steps": [
+        {
+          "id": "01-01",
+          "name": "Wire GET /api/statement end-to-end (AccountUseCase + AccountService + TransactionDto + AccountController)",
+          "criteria": [
+            "AccountUseCase exposes getStatement() returning List<Transaction>",
+            "AccountService implements getStatement() — delegates to repository, returns transactions sorted in reverse chronological order",
+            "TransactionDto record created in adapter.in.web package with fields: type (String), amount (BigDecimal), date (String)",
+            "AccountController exposes GET /api/statement, maps List<Transaction> to List<TransactionDto> — mapping done exclusively in the controller",
+            "GET /api/statement returns HTTP 200 with the transaction list (empty array [] when no transactions — never 404)",
+            "Instant serialised as ISO 8601 string (spring.jackson.serialization.write-dates-as-timestamps=false)",
+            "TransactionDto is never imported by domain or application layers",
+            "Walking-skeleton scenario passes with @real-io Spring context"
+          ],
+          "test_file": "src/test/resources/features/account-statement/walking-skeleton.feature",
+          "scenario_name": "The customer retrieves a non-empty statement after making a deposit",
+          "files_to_modify": [
+            "src/main/java/com/softcrafts/bankkata/application/port/in/AccountUseCase.java",
+            "src/main/java/com/softcrafts/bankkata/application/AccountService.java",
+            "src/main/java/com/softcrafts/bankkata/adapter/in/web/TransactionDto.java",
+            "src/main/java/com/softcrafts/bankkata/adapter/in/web/AccountController.java"
+          ],
+          "implementation_notes": "Extend AccountUseCase interface with List<Transaction> getStatement(). Extend AccountService to implement it by loading all transactions from the repository and sorting by timestamp descending (stable sort — preserve insertion order for equal timestamps). Create TransactionDto as a Java record in adapter.in.web. Extend AccountController with a @GetMapping(\"/api/statement\") endpoint that calls the use case and streams the result through a Transaction→TransactionDto mapper defined inline in the controller. Add spring.jackson.serialization.write-dates-as-timestamps=false to application.properties if not already present."
+        }
+      ]
+    },
+    {
+      "id": "02",
+      "name": "Statement API scenarios — activate and satisfy the 5 @skip scenarios",
+      "steps": [
+        {
+          "id": "02-01",
+          "name": "Reverse chronological order — transactions sorted latest-first",
+          "criteria": [
+            "Statement with 3 transactions (DEPOSIT 200, DEPOSIT 100, WITHDRAWAL 50) returns them in reverse order",
+            "Position 0: WITHDRAWAL 50.00 | Position 1: DEPOSIT 100.00 | Position 2: DEPOSIT 200.00",
+            "AccountService.getStatement() sort is stable — equal timestamps preserve insertion order",
+            "@skip tag removed from scenario"
+          ],
+          "test_file": "src/test/resources/features/account-statement/statement-api.feature",
+          "scenario_name": "The statement shows all transactions in reverse chronological order",
+          "files_to_modify": [
+            "src/main/java/com/softcrafts/bankkata/application/AccountService.java",
+            "src/test/resources/features/account-statement/statement-api.feature"
+          ],
+          "implementation_notes": "This is the core behavioural validation of AccountService.getStatement(). Verify the sort comparator uses transaction timestamp descending. Remove @skip from this scenario. If 01-01 already produces the correct order, this step is a pure verification — remove @skip and confirm GREEN without additional production changes."
+        },
+        {
+          "id": "02-02",
+          "name": "JSON field shape — each transaction has type, amount, and date fields",
+          "criteria": [
+            "Each TransactionDto in the response contains the fields: type, amount, date",
+            "The date field of the first transaction is a non-empty ISO 8601 string",
+            "HTTP 200 returned for a single-transaction account",
+            "@skip tag removed from scenario"
+          ],
+          "test_file": "src/test/resources/features/account-statement/statement-api.feature",
+          "scenario_name": "Each transaction in the statement has the correct JSON fields",
+          "files_to_modify": [
+            "src/main/java/com/softcrafts/bankkata/adapter/in/web/TransactionDto.java",
+            "src/test/resources/features/account-statement/statement-api.feature"
+          ],
+          "implementation_notes": "Likely passes after 01-01 once TransactionDto is correctly defined. Remove @skip and run — if GREEN, no production change needed. If RED, inspect TransactionDto field names and Jackson serialisation (record component names map directly to JSON keys; ensure no @JsonProperty renaming conflicts)."
+        },
+        {
+          "id": "02-03",
+          "name": "Empty statement — GET /api/statement returns [] when no transactions",
+          "criteria": [
+            "GET /api/statement on a fresh account returns HTTP 200",
+            "Response body is an empty JSON array []",
+            "No 404 or 500 returned for the zero-transaction case",
+            "@skip tag removed from scenario"
+          ],
+          "test_file": "src/test/resources/features/account-statement/statement-api.feature",
+          "scenario_name": "The statement returns an empty array when no transactions have occurred",
+          "files_to_modify": [
+            "src/test/resources/features/account-statement/statement-api.feature"
+          ],
+          "implementation_notes": "Likely passes after 01-01 if AccountService returns an empty list and AccountController does not special-case emptiness. Remove @skip and verify GREEN. If RED, ensure the controller does not throw on an empty list and that Jackson serialises an empty List as [] rather than null."
+        },
+        {
+          "id": "02-04",
+          "name": "Decimal precision — BigDecimal amounts serialised without loss",
+          "criteria": [
+            "DEPOSIT 149.99 and WITHDRAWAL 0.01 are returned with exact decimal values",
+            "No floating-point rounding — BigDecimal serialised as JSON number with full precision",
+            "Reverse order respected: WITHDRAWAL 0.01 at position 0, DEPOSIT 149.99 at position 1",
+            "@skip tag removed from scenario"
+          ],
+          "test_file": "src/test/resources/features/account-statement/statement-api.feature",
+          "scenario_name": "Decimal transaction amounts are preserved without loss of precision",
+          "files_to_modify": [
+            "src/test/resources/features/account-statement/statement-api.feature"
+          ],
+          "implementation_notes": "TransactionDto.amount is BigDecimal — Jackson serialises BigDecimal as a JSON number preserving scale by default. Remove @skip and verify GREEN. If RED, check whether WRITE_BIGDECIMAL_AS_PLAIN or a custom serialiser is needed to avoid scientific notation (e.g. 1.49990E+2)."
+        },
+        {
+          "id": "02-05",
+          "name": "Balance consistency — statement amounts sum to current balance",
+          "criteria": [
+            "After DEPOSIT 300.00 and WITHDRAWAL 50.00, statement contains 2 transactions",
+            "Reverse order: WITHDRAWAL 50.00 at position 0, DEPOSIT 300.00 at position 1",
+            "Balance shown in response is 250.00 euros",
+            "@skip tag removed from scenario"
+          ],
+          "test_file": "src/test/resources/features/account-statement/statement-api.feature",
+          "scenario_name": "Statement amounts and current balance are consistent after mixed operations",
+          "files_to_modify": [
+            "src/test/resources/features/account-statement/statement-api.feature"
+          ],
+          "implementation_notes": "IMPORTANT: the step 'the balance shown is {double} euros' is already defined in AccountManagementSteps.java and calls GET /api/balance — NOT GET /api/statement. No envelope DTO required. GET /api/statement REMAINS a plain List<TransactionDto>. This step validates: (a) 2 transactions in the statement with correct reverse order, and (b) that GET /api/balance still returns the correct balance after operations — i.e., Phase 1 retrocompatibility is preserved. Remove @skip only. No production code change expected."
+        }
+      ]
+    },
+    {
+      "id": "03",
+      "name": "Frontend React — StatementView, bankApi.ts, App.tsx",
+      "steps": [
+        {
+          "id": "03-01",
+          "name": "Implement StatementView component, getStatement() API call, and App.tsx integration",
+          "criteria": [
+            "bankApi.ts exposes getStatement() calling GET /api/statement and returning the transaction array",
+            "StatementView renders transactions in a table with columns: type, amount, date",
+            "App.tsx adds a 'Relevé' button toggling boolean state showStatement",
+            "When showStatement is true, StatementView is rendered; when false, the main account view is shown",
+            "Navigation uses conditional rendering (boolean state) — no react-router dependency added",
+            "Empty statement renders an empty table (not an error state)",
+            "Component compiles without TypeScript errors",
+            "Manual visual verification: deposit, click Relevé, transactions visible in reverse chronological order"
+          ],
+          "test_file": "",
+          "scenario_name": "",
+          "files_to_modify": [
+            "frontend/src/api/bankApi.ts",
+            "frontend/src/StatementView.tsx",
+            "frontend/src/App.tsx"
+          ],
+          "implementation_notes": "No automated browser AT is specified for this step — validation is manual visual + Vitest/RTL unit tests at the crafter's discretion. StatementView is a pure presentational component receiving the transaction array as props (fetched in App.tsx on button click). Date formatting: display the ISO 8601 string as-is, or apply a locale-aware Date.toLocaleDateString() — crafter decision. Keep App.tsx state minimal: showStatement boolean + statementData array. Fetch on each click (no caching required for phase 2)."
+        }
+      ]
+    }
+  ],
+  "implementation_scope": {
+    "source_directories": [
+      "src/main/java/com/softcrafts/bankkata/",
+      "frontend/src/"
+    ],
+    "test_directories": [
+      "src/test/java/com/softcrafts/bankkata/",
+      "src/test/resources/features/account-statement/"
+    ],
+    "excluded_patterns": [
+      "target/",
+      "node_modules/",
+      "*.class"
+    ]
+  },
+  "validation": {
+    "status": "approved",
+    "reviewer": "nw-acceptance-designer-reviewer",
+    "approved_at": "2026-06-18T17:50:00Z"
+  }
+}

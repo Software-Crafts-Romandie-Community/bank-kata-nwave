@@ -300,7 +300,7 @@ Règles à encoder en CI via ArchUnit :
 
 **Date** : 2026-06-18
 **Architecte** : Morgan (nw-solution-architect)
-**Statut** : Approuvé — prêt pour DISTILL wave
+**Statut** : IMPLEMENTED — livré 2026-06-18, 25 tests GREEN
 
 ---
 

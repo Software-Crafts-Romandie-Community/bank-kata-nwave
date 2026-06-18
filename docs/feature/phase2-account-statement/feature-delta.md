@@ -463,6 +463,31 @@ sont exercés en Given/Then steps — rétrocompatibilité confirmée structurel
 
 ---
 
+## Wave: DELIVER / [REF] Demo Evidence
+
+**Date** : 2026-06-18 | **Gate** : Post-Merge Integration — PASS
+
+Suite d'acceptance exécutée : `mvn test` — **25 tests, 0 failures, BUILD SUCCESS**
+
+| Suite | Tests | Résultat |
+|-------|-------|---------|
+| AccountStatementAcceptanceTest | 6/6 | GREEN |
+| AccountManagementAcceptanceTest | 16/16 | GREEN (Phase 1 inchangée) |
+| ArchitectureTest | 3/3 | GREEN |
+
+**Scénarios story slice-01 validés :**
+- Walking skeleton : dépôt 200€ → GET /api/statement → 200 OK, 1 transaction ✓
+- Tri décroissant : DEPOSIT 200, DEPOSIT 100, WITHDRAWAL 50 → [WITHDRAWAL 50, DEPOSIT 100, DEPOSIT 200] ✓
+- Champs JSON : type, amount, date (ISO 8601 non vide) ✓
+- Liste vide : GET /api/statement sans transaction → 200 OK, [] ✓
+- Précision décimale : DEPOSIT 149.99, WITHDRAWAL 0.01 → valeurs exactes préservées ✓
+- Cohérence solde : DEPOSIT 300, WITHDRAWAL 50 → balance 250.00 (GET /api/balance) ✓
+
+**Elevator Pitch demo (Story slice-01, UI narrative)** :
+Marie effectue un dépôt de 200€ et consulte GET /api/statement → reçoit `[{"type":"DEPOSIT","amount":200.00,"date":"2026-06-18T...Z"}]` — chaque opération est identifiable avec type, montant et date ISO 8601.
+
+---
+
 ## Wave: DISTILL / [REF] Non couvert par les AT automatisés (hors scope MockMvc)
 
 Les critères d'acceptance suivants concernent le rendu React — non vérifiables via MockMvc.
