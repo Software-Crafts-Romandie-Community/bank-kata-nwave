@@ -1,0 +1,172 @@
+schema_version: 1
+created: 2026-06-18
+updated: 2026-06-18
+feature: phase2-account-statement
+job_id: job-002
+
+journey:
+  name: "Consultation du relevé de compte — Phase 2"
+  goal: "Consulter l'historique des transactions de la session avec type, montant et date"
+  persona: "Marie — cliente bancaire, 35 ans, utilise le web pour ses finances quotidiennes"
+
+  emotional_arc:
+    start: "Curiosité — Marie veut vérifier ce qui s'est passé sur son compte"
+    middle: "Attention — elle parcourt la liste et reconcilie mentalement les montants"
+    end: "Rassurance — la liste correspond à ses souvenirs, son compte est juste"
+
+steps:
+  - id: 1
+    name: "Accéder au relevé depuis la page principale"
+    action: "Cliquer sur le bouton 'Relevé' sur la page principale (Phase 1)"
+
+    web_mockup: |
+      +----------------------------------------------------------+
+      | Bank — Mon Compte                         [localhost]     |
+      +----------------------------------------------------------+
+      |                                                          |
+      |   Solde actuel                                           |
+      |   +--------------------------------------------+        |
+      |   |   250,00 EUR                               |        |
+      |   +--------------------------------------------+        |
+      |                                                          |
+      |   [ Déposer ]     [ Retirer ]     [ Relevé ]            |
+      +----------------------------------------------------------+
+
+    shared_artifacts:
+      - name: balance
+        source: "Account domain object — GET /api/balance (Phase 1)"
+        displayed_as: "${balance} EUR"
+        consumers:
+          - "Page principale Phase 1 — solde affiché"
+          - "Pied de page du relevé Phase 2 — solde confirmé"
+
+    emotional_state:
+      entry: "Orientée — Marie a un solde visible et des opérations effectuées"
+      exit: "Curieuse — elle clique pour voir l'historique"
+
+    integration_checkpoint: |
+      Le bouton "Relevé" est présent sur la page principale Phase 1.
+      Il déclenche GET /api/statement (nouvel endpoint Phase 2).
+
+    failure_modes:
+      - "Bouton absent — régression Phase 1 (hors scope Phase 2)"
+
+    gherkin: |
+      Scenario: Marie accède au relevé depuis la page principale
+        Given Marie est sur la page principale http://localhost:8080
+        And son solde affiché est 250,00 EUR
+        When Marie clique sur le bouton "Relevé"
+        Then la liste de ses transactions s'affiche dans le navigateur
+        And le solde affiché en bas du relevé est 250,00 EUR
+
+  - id: 2
+    name: "Afficher la liste des transactions (GET /api/statement)"
+    action: "Navigateur reçoit la liste JSON — React affiche le tableau"
+
+    web_mockup: |
+      +----------------------------------------------------------+
+      | Bank — Relevé de compte                   [localhost]     |
+      +----------------------------------------------------------+
+      |                                                          |
+      |   Relevé de compte                                       |
+      |   +-------------------------------------------------+    |
+      |   | Date              | Type      | Montant         |    |
+      |   |-------------------|-----------|-----------------|    |
+      |   | 18/06/2026 14:32  | Dépôt     | + 300,00 EUR    |    |
+      |   | 18/06/2026 14:15  | Retrait   |  - 50,00 EUR    |    |
+      |   | 18/06/2026 14:01  | Dépôt     | + 100,00 EUR    |    |
+      |   | 18/06/2026 13:45  | Dépôt     | + 200,00 EUR    |    |
+      |   +-------------------------------------------------+    |
+      |                                                          |
+      |   Solde actuel : 550,00 EUR                              |
+      |   [ ← Retour au compte ]                                 |
+      +----------------------------------------------------------+
+
+    shared_artifacts:
+      - name: transactions
+        source: "Account.getTransactions() — List<Transaction>"
+        displayed_as: "tableau : ${date} | ${type} | ${amount signé}"
+        consumers:
+          - "Toutes les lignes du tableau du relevé"
+      - name: transaction_type
+        source: "Transaction.type (enum DEPOSIT / WITHDRAWAL)"
+        displayed_as: "DEPOSIT → 'Dépôt' / WITHDRAWAL → 'Retrait'"
+        consumers:
+          - "Colonne 'Type'"
+          - "Signe du montant (+ ou -)"
+      - name: transaction_amount
+        source: "Transaction.amount (BigDecimal)"
+        displayed_as: "+ X,XX EUR ou - X,XX EUR"
+        consumers:
+          - "Colonne 'Montant'"
+      - name: transaction_timestamp
+        source: "Transaction.timestamp (Instant)"
+        displayed_as: "dd/MM/yyyy HH:mm (timezone locale)"
+        consumers:
+          - "Colonne 'Date'"
+          - "Tri décroissant"
+      - name: balance
+        source: "Account domain object"
+        displayed_as: "${balance} EUR"
+        consumers:
+          - "Pied de page du relevé"
+
+    emotional_state:
+      entry: "Curieuse et légèrement anxieuse — les données vont-elles correspondre ?"
+      exit: "Rassurée — chaque ligne est lisible, le total est cohérent"
+
+    integration_checkpoint: |
+      GET /api/statement
+        → 200 OK
+        → body : [{type, amount, date}] trié par date décroissante
+        → UI : tableau 3 colonnes, signe sur montant, date lisible
+        → État vide : "Aucune transaction enregistrée dans cette session."
+
+    failure_modes:
+      - "Liste vide sans message — confus pour l'utilisateur"
+      - "Ordre aléatoire des transactions — reconciliation impossible"
+      - "Montant sans signe — impossible de distinguer dépôt de retrait"
+      - "Date en format ISO brut — illisible pour un non-technicien"
+
+    gherkin: |
+      Scenario: Le relevé affiche toutes les transactions dans l'ordre chronologique inverse
+        Given Marie a effectué 4 transactions dans l'ordre : dépôt 200, dépôt 100, retrait 50, dépôt 300
+        When Marie consulte son relevé de compte
+        Then la liste contient 4 transactions
+        And la première ligne est le dépôt de 300,00 EUR (plus récent)
+        And la dernière ligne est le dépôt de 200,00 EUR (plus ancien)
+
+      Scenario: GET /api/statement retourne la liste JSON structurée
+        Given le serveur Spring Boot est démarré avec 3 transactions enregistrées
+        When Thomas envoie GET /api/statement
+        Then la réponse HTTP a le statut 200 OK
+        And le corps contient une liste JSON de 3 objets avec les champs type, amount et date
+        And les transactions sont triées par date décroissante
+
+      Scenario: Le relevé affiche un état vide si aucune transaction n'a eu lieu
+        Given la session vient de démarrer et aucune opération n'a été effectuée
+        When Marie consulte son relevé de compte
+        Then la page affiche "Aucune transaction enregistrée dans cette session."
+        And aucune ligne de tableau n'est affichée
+
+integration_validation:
+  shared_artifact_consistency:
+    - artifact: balance
+      must_match_across: [1, 2]
+      failure_message: >
+        Le solde affiché dans le pied de page du relevé doit correspondre exactement
+        au solde renvoyé par GET /api/balance — même source Account.
+    - artifact: transactions
+      must_match_across: [2]
+      failure_message: >
+        La liste affichée doit contenir exactement les transactions enregistrées dans Account.
+        Ni plus, ni moins. Toute divergence est un bug critique.
+
+changelog:
+  - date: "2026-06-18"
+    feature: "phase2-account-statement"
+    change: >
+      Création du parcours relevé de compte (Phase 2).
+      Job-002 : consultation de l'historique des transactions.
+      Scope décidé en session : toutes les transactions sans filtre,
+      montant + type + date, pas de running balance.

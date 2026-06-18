@@ -1,10 +1,6 @@
 schema_version: 1
 created: 2026-06-02
-updated: 2026-06-02
-feature_source: phase1-account-management
-pivot_note: >
-  job-001 (CLI) et job-002 (démo web) remplacés par le nouveau job-001
-  suite au pivot du 2026-06-02 — projet requalifié en application web bancaire standard.
+updated: 2026-06-18
 
 jobs:
   - id: job-001
@@ -46,3 +42,40 @@ jobs:
       - slice-02-deposit-api
       - slice-03-withdrawal-api
       - slice-04-insufficient-funds-api
+
+  - id: job-002
+    label: bank-account-statement-consultation
+    statement: >
+      When I need to understand what happened on my bank account,
+      I want to see all my transactions with their type and date from a browser,
+      so I can verify my account history and reconcile my finances without calling my bank.
+    dimensions:
+      functional:
+        - Afficher la liste de toutes les transactions (depot et retrait) avec montant et date
+        - Acceder au releve depuis le meme navigateur que la gestion de compte (Phase 1)
+        - Consulter l'historique via GET /api/statement sans parametre supplementaire
+        - Voir les transactions dans un ordre coherent (chronologique inverse — plus recent en premier)
+      emotional:
+        - Se sentir rassure — les chiffres correspondent a ce que je me rappelle
+        - Avoir confiance dans le systeme — rien n'est perdu, tout est trace
+        - Ne pas etre submerge — la liste est lisible meme avec plusieurs transactions
+      social:
+        - Verifier son compte de facon autonome sans devoir appeler son conseiller
+        - Avoir une preuve consultable des operations effectuees pendant la session
+    four_forces:
+      push: >
+        Apres avoir effectue plusieurs depots et retraits dans la session,
+        Marie ne peut pas savoir quelles operations ont ete enregistrees —
+        elle voit seulement le solde final, pas l'historique.
+      pull: >
+        Une page de releve simple et lisible permettant de verifier
+        chaque operation effectuee dans la session, avec son montant et sa date.
+      anxiety: >
+        Peur que les transactions affichees ne correspondent pas aux operations reellement
+        enregistrees — qu'une operation soit perdue ou doublee sans que ca soit visible.
+      habit: >
+        Habitude de consulter les releves papier ou PDF de sa banque traditionnelle —
+        l'affichage web doit etre aussi lisible et fiable que ce format familier.
+    opportunity_score: 8
+    stories:
+      - slice-01-statement-api-and-ui
