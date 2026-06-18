@@ -23,7 +23,6 @@ Feature: Account statement API — GET /api/statement content and format
     And each transaction in the statement has type, amount, and date fields
     And the date field of the first transaction is a non-empty string
 
-  @skip
   Scenario: The statement returns an empty array when no transactions have occurred
     Given a new bank account with no transactions
     When the customer requests the account statement
