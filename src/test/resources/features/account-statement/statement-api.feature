@@ -38,7 +38,6 @@ Feature: Account statement API — GET /api/statement content and format
     And the statement entry at position 0 has type "WITHDRAWAL" and amount 0.01
     And the statement entry at position 1 has type "DEPOSIT" and amount 149.99
 
-  @skip
   Scenario: Statement amounts and current balance are consistent after mixed operations
     Given a new bank account with no transactions
     And the customer has already deposited 300.00 euros
