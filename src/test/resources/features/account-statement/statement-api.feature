@@ -4,7 +4,6 @@ Feature: Account statement API — GET /api/statement content and format
   I want to retrieve all my transactions via the statement API
   So that I can review the type, amount, and date of every operation
 
-  @skip
   Scenario: The statement shows all transactions in reverse chronological order
     Given a new bank account with no transactions
     And the customer has already deposited 200.00 euros
