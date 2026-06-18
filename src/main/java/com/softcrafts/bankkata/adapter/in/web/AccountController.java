@@ -58,7 +58,7 @@ public class AccountController {
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ProblemDetail> handleInvalidAmount(IllegalArgumentException exception) {
+    public ResponseEntity<ProblemDetail> handleInvalidAmount(IllegalArgumentException ignored) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Invalid amount");
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
     }

@@ -6,7 +6,6 @@ import com.softcrafts.bankkata.domain.Account;
 import com.softcrafts.bankkata.domain.Transaction;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
@@ -46,9 +45,8 @@ public class AccountService implements AccountUseCase {
 
     @Override
     public List<Transaction> getStatement() {
-        Account account = accountRepository.load();
-        List<Transaction> transactions = new ArrayList<>(account.getTransactions());
-        transactions.sort(Comparator.comparing(Transaction::timestamp).reversed());
-        return transactions;
+        return accountRepository.load().getTransactions().stream()
+                .sorted(Comparator.comparing(Transaction::timestamp).reversed())
+                .toList();
     }
 }
