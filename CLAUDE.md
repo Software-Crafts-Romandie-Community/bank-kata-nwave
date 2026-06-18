@@ -36,6 +36,10 @@ native Bash/grep equivalents — they use IDE indexes and are context-aware.
 > `Read` and `Edit` (native) remain preferred for targeted single-file read/write
 > (better diff tracking in the harness).
 
+## Frontend
+
+Voir `frontend/CLAUDE.md` — règles de développement, cohérence du design system.
+
 ## Mutation Testing Strategy
 
 This project uses **nightly-delta** mutation testing. CI runs PIT on files modified each day via GitHub Actions. NOT run during feature delivery — runs as a separate nightly job on main branch only (job `mutation-nightly` in `.github/workflows/ci.yml`).
